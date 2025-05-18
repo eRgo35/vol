@@ -1,21 +1,15 @@
-use std::task::Wake;
-
-use color_eyre::{
-    Result,
-    owo_colors::{OwoColorize, colors::css::LemonChiffon},
-};
+use color_eyre::Result;
 use crossterm::event::{Event, EventStream, KeyCode, KeyEvent, KeyEventKind, KeyModifiers};
-use futures::{FutureExt, StreamExt, future::Lazy};
+use futures::{FutureExt, StreamExt};
 use ratatui::{
     DefaultTerminal, Frame,
-    buffer::Buffer,
-    layout::{Alignment, Constraint, Layout, Rect},
-    style::{Color, Style, Stylize, palette::tailwind},
+    layout::{Alignment, Constraint, Layout},
+    style::{Style, Stylize, palette::tailwind},
     symbols,
     text::Line,
-    widgets::{Block, Borders, Gauge, LineGauge, Padding, Tabs},
+    widgets::{Block, Borders, LineGauge, Padding},
 };
-use strum::{Display, EnumIter, FromRepr, IntoEnumIterator};
+use strum::{Display, EnumIter, FromRepr};
 
 #[tokio::main]
 async fn main() -> color_eyre::Result<()> {
@@ -114,7 +108,7 @@ impl App {
     fn draw(&mut self, frame: &mut Frame) {
         // let titles = SelectedTab::iter().map(SelectedTab::title);
 
-        use Constraint::{Length, Min, Ratio};
+        use Constraint::Length;
         let layout = Layout::vertical([Length(4), Constraint::Fill(1), Length(2)])
             .spacing(1)
             .margin(1);
@@ -157,8 +151,8 @@ impl App {
 
         let mut name = [name1, name2, name3];
 
-        let newName = name[self.active_output].clone().bold();
-        name[self.active_output] = newName;
+        let new_name = name[self.active_output].clone().bold();
+        name[self.active_output] = new_name;
 
         let volume_bar1 = LineGauge::default()
             .block(title_block(name[0].clone()))
