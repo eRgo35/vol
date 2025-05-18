@@ -1,18 +1,14 @@
 [package]
 name = "vol"
 version = "0.1.0"
+description = "A simpler TUI version of pavucontrol"
 authors = ["Michał Czyż <mike@c2yz.com>"]
 license = "MIT"
 edition = "2024"
 
 [dependencies]
-color-eyre = "0.6.3"
-crossterm = { version = "0.29.0", features = ["event-stream"] }
+crossterm = { version = "0.28.1", features = ["event-stream"] }
 futures = "0.3.31"
-pipewire = "0.8.0"
 ratatui = "0.29.0"
-serde = { version = "1.0.219", features = ["derive"] }
-strum = { version = "0.27.1", features = ["derive", "strum_macros"] }
-tokio = { version = "1.45.0", features = ["full"] }
-zbus = "5.7.0"
-zvariant = "5.5.3"
+tokio = { version = "1.40.0", features = ["full"] }
+color-eyre = "0.6.3"
