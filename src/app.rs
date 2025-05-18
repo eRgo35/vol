@@ -1,4 +1,7 @@
-use crate::event::{AppEvent, Event, EventHandler};
+use crate::{
+    event::{AppEvent, Event, EventHandler},
+    ui::SelectedTab,
+};
 use ratatui::{
     DefaultTerminal,
     crossterm::event::{KeyCode, KeyEvent, KeyModifiers},
@@ -13,6 +16,8 @@ pub struct App {
     pub counter: u8,
     /// Event handler.
     pub events: EventHandler,
+    /// Selected Tab
+    pub selected_tab: SelectedTab,
 }
 
 impl Default for App {
@@ -21,6 +26,7 @@ impl Default for App {
             running: true,
             counter: 0,
             events: EventHandler::new(),
+            selected_tab: SelectedTab::default(),
         }
     }
 }
@@ -44,6 +50,7 @@ impl App {
                 Event::App(app_event) => match app_event {
                     AppEvent::Increment => self.increment_counter(),
                     AppEvent::Decrement => self.decrement_counter(),
+                    AppEvent::SwitchTab(tab) => self.switch_tab(tab),
                     AppEvent::Quit => self.quit(),
                 },
             }
@@ -60,6 +67,21 @@ impl App {
             }
             KeyCode::Right => self.events.send(AppEvent::Increment),
             KeyCode::Left => self.events.send(AppEvent::Decrement),
+            KeyCode::F(1) => self
+                .events
+                .send(AppEvent::SwitchTab(SelectedTab::PlaybackTab)),
+            KeyCode::F(2) => self
+                .events
+                .send(AppEvent::SwitchTab(SelectedTab::RecordingTab)),
+            KeyCode::F(3) => self
+                .events
+                .send(AppEvent::SwitchTab(SelectedTab::OutputDevicesTab)),
+            KeyCode::F(4) => self
+                .events
+                .send(AppEvent::SwitchTab(SelectedTab::InputDevicesTab)),
+            KeyCode::F(5) => self
+                .events
+                .send(AppEvent::SwitchTab(SelectedTab::ConfigurationTab)),
             // Other handlers you could add here.
             _ => {}
         }
@@ -75,6 +97,10 @@ impl App {
     /// Set running to false to quit the application.
     pub fn quit(&mut self) {
         self.running = false;
+    }
+
+    pub fn switch_tab(&mut self, tab: SelectedTab) {
+        self.selected_tab = tab;
     }
 
     pub fn increment_counter(&mut self) {

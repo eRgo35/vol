@@ -4,6 +4,8 @@ use ratatui::crossterm::event::Event as CrosstermEvent;
 use std::time::Duration;
 use tokio::sync::mpsc;
 
+use crate::ui::SelectedTab;
+
 /// The frequency at which tick events are emitted.
 const TICK_FPS: f64 = 30.0;
 
@@ -35,6 +37,8 @@ pub enum AppEvent {
     Increment,
     /// Decrement the counter.
     Decrement,
+    /// Switch Tabs
+    SwitchTab(SelectedTab),
     /// Quit the application.
     Quit,
 }
