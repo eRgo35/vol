@@ -11,5 +11,8 @@ crossterm = { version = "0.29.0", features = ["event-stream"] }
 futures = "0.3.31"
 pipewire = "0.8.0"
 ratatui = "0.29.0"
+serde = { version = "1.0.219", features = ["derive"] }
 strum = { version = "0.27.1", features = ["derive", "strum_macros"] }
 tokio = { version = "1.45.0", features = ["full"] }
+zbus = "5.7.0"
+zvariant = "5.5.3"
