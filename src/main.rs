@@ -1,17 +1,18 @@
 use std::io::Write;
 use std::process::ExitCode;
-
 use std::time::Instant;
 
+use ratatui::DefaultTerminal;
 use vol::app::{App, Options};
 use vol::backend::BackendHandle;
 use vol::cli;
 use vol::event::EventHandler;
 use vol::theme;
 
+/// Startup order per VOL-ARCH-060: CLI → color-eyre → backend → terminal →
+/// app and events → run → restore on every exit path.
 #[tokio::main]
 async fn main() -> color_eyre::Result<ExitCode> {
-    color_eyre::install()?;
     let args = std::env::args_os()
         .skip(1)
         .map(|arg| arg.to_string_lossy().into_owned());
@@ -30,25 +31,28 @@ async fn main() -> color_eyre::Result<ExitCode> {
         writeln!(std::io::stdout(), "{}", cli::VERSION)?;
         return Ok(ExitCode::SUCCESS);
     }
+    color_eyre::install()?;
+    let no_color = std::env::var_os("NO_COLOR").map(|v| v.to_string_lossy().into_owned());
     let options = Options {
-        color: theme::color_enabled(cli.no_color, std::env::var("NO_COLOR").ok().as_deref()),
+        color: theme::color_enabled(cli.no_color, no_color.as_deref()),
         mouse: cli.mouse,
     };
-    let BackendHandle { commands, events } = BackendHandle::inert();
+    // Replaced by the PipeWire backend in M1.
+    let backend = BackendHandle::inert();
+    // Raw mode, alternate screen and a panic hook that restores the terminal.
     let mut terminal = ratatui::init();
-    let result = run(options, commands, events, &mut terminal).await;
+    let result = run(options, backend, &mut terminal).await;
     ratatui::restore();
     result.map(|()| ExitCode::SUCCESS)
 }
 
-/// Builds the app and its event sources, then runs the loop.
+/// Builds the app and its event sources, then runs the loop until quit.
 async fn run(
     options: Options,
-    commands: Box<dyn vol::backend::AudioBackend>,
-    events: tokio::sync::mpsc::UnboundedReceiver<vol::backend::BackendEvent>,
-    terminal: &mut ratatui::DefaultTerminal,
+    backend: BackendHandle,
+    terminal: &mut DefaultTerminal,
 ) -> color_eyre::Result<()> {
-    let mut app = App::new(options, commands, Instant::now());
-    let mut events = EventHandler::new(events)?;
+    let mut app = App::new(options, backend.commands, Instant::now());
+    let mut events = EventHandler::new(backend.events)?;
     app.run(terminal, &mut events).await
 }
