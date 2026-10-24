@@ -128,13 +128,14 @@ Consulted:
 3. `pipewire-rs` published documentation, <https://pipewire.pages.freedesktop.org/pipewire-rs/pipewire/> (crate index, `channel`, `metadata`, `device` pages) — API surface and threading guidance. The docs.rs build for `pipewire 0.8.0` failed, so 0.8.0 specifics are VERIFY items (VOL-ARCH-016).
 4. `Cargo.lock` of this repository (pinned versions); repository files listed in 01 §1.
 5. Conventions: RFC 2119/8174, <https://no-color.org> (recalled, not re-fetched).
-6. Not consulted although referenced by the crate docs: <https://docs.pipewire.org> (property/param semantics were taken from the headers and live observation instead; Open question Q4 lists what that leaves unverified).
+6. `pipewire 0.10.1` / `libspa 0.10.1` crate sources (Cargo registry) and a scratch spike run against a private PipeWire 1.6.9 daemon (own runtime dir, no WirePlumber), 2026-10-24 (M1-T01, VF-01).
+7. Not consulted although referenced by the crate docs: <https://docs.pipewire.org> (property/param semantics were taken from the headers and live observation instead; Open question Q4 lists what that leaves unverified).
 
 ## 7. VERIFY index
 
 | # | Item (where) | Procedure summary |
 |---|---|---|
-| VF-01 | `pipewire 0.10.1` API surface & loop type names (VOL-ARCH-015/016) | `cargo doc` locally; compile a 30-line spike using every API in VOL-ARCH-016 |
+| VF-01 | `pipewire 0.10.1` API surface & loop type names (VOL-ARCH-015/016) | **Closed** 2026-10-24, PipeWire 1.6.9 (M1-T01): every API exists with a safe wrapper, no `sys` fallback; names in VOL-ARCH-015/016 and the Spike results table of `docs/plans/01-backend-store.md`. Procedure: compile a short spike using every API in VOL-ARCH-016 and run it against a private daemon |
 | VF-02 | Core `error` event semantic on daemon death (VOL-ARCH-042) | kill `pipewire`; log `(id, seq, res, message)` |
 | VF-03 | `Props.volume ≠ 1.0` multiplicative (VOL-VM-001) | `pw-cli set-param … Props '{ volume: 0.5 }'` on a test node |
 | VF-04 | Pod encoding of `channelVolumes`/`mute` writes (VOL-VM-011) | serialize, compare with `pw-cli` equivalent on a null sink |
