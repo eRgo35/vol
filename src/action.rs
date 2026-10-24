@@ -3,7 +3,7 @@
 use crate::ui::SelectedTab;
 
 /// A user intent. Produced by [`crate::keymap::map_key`], consumed by the app.
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Action {
     /// Quit the application.
     Quit,

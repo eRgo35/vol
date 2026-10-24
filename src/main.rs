@@ -1,8 +1,13 @@
 use std::io::Write;
 use std::process::ExitCode;
 
-use vol::app::App;
+use std::time::Instant;
+
+use vol::app::{App, Options};
+use vol::backend::BackendHandle;
 use vol::cli;
+use vol::event::EventHandler;
+use vol::theme;
 
 #[tokio::main]
 async fn main() -> color_eyre::Result<ExitCode> {
@@ -25,8 +30,25 @@ async fn main() -> color_eyre::Result<ExitCode> {
         writeln!(std::io::stdout(), "{}", cli::VERSION)?;
         return Ok(ExitCode::SUCCESS);
     }
-    let terminal = ratatui::init();
-    let result = App::new().run(terminal).await;
+    let options = Options {
+        color: theme::color_enabled(cli.no_color, std::env::var("NO_COLOR").ok().as_deref()),
+        mouse: cli.mouse,
+    };
+    let BackendHandle { commands, events } = BackendHandle::inert();
+    let mut terminal = ratatui::init();
+    let result = run(options, commands, events, &mut terminal).await;
     ratatui::restore();
     result.map(|()| ExitCode::SUCCESS)
+}
+
+/// Builds the app and its event sources, then runs the loop.
+async fn run(
+    options: Options,
+    commands: Box<dyn vol::backend::AudioBackend>,
+    events: tokio::sync::mpsc::UnboundedReceiver<vol::backend::BackendEvent>,
+    terminal: &mut ratatui::DefaultTerminal,
+) -> color_eyre::Result<()> {
+    let mut app = App::new(options, commands, Instant::now());
+    let mut events = EventHandler::new(events)?;
+    app.run(terminal, &mut events).await
 }
