@@ -13,18 +13,25 @@
 //! the exit signal of [`BackendHandle::shutdown`], and last the event sender,
 //! so an app that sees the event channel close knows no PipeWire object is left.
 
+mod conn;
 pub mod params;
 
+use std::cell::Cell;
 use std::io;
 use std::path::PathBuf;
+use std::rc::Rc;
 use std::sync::{Arc, Weak};
 use std::thread::JoinHandle;
 
 use pipewire::main_loop::MainLoopRc;
-use tokio::sync::mpsc::unbounded_channel;
+use tokio::sync::mpsc::{UnboundedSender, unbounded_channel};
 
-use super::{AudioBackend, BackendGone, BackendHandle, BackendThread, Command};
+use super::{
+    AudioBackend, BackendEvent, BackendGone, BackendHandle, BackendThread, Command,
+    DisconnectReason,
+};
 use crate::log;
+use conn::Session;
 
 /// Name of the backend thread.
 const THREAD_NAME: &str = "vol-pw";
@@ -52,7 +59,7 @@ fn spawn(remote: Option<PathBuf>) -> io::Result<BackendHandle> {
         alive: Arc::downgrade(&alive),
     };
     let handle = spawn_named(move || {
-        run(remote, commands_rx);
+        run(remote, commands_rx, &events_tx);
         drop(alive);
         drop(exited_tx);
         drop(events_tx);
@@ -92,8 +99,14 @@ impl AudioBackend for PwCommands {
     }
 }
 
-/// Body of `vol-pw`: runs the main loop until [`Command::Shutdown`].
-fn run(remote: Option<PathBuf>, commands: pipewire::channel::Receiver<Command>) {
+/// Body of `vol-pw`: connects once and runs the main loop until
+/// [`Command::Shutdown`]. A failed or lost connection is reported as
+/// `Disconnected` and the loop keeps serving commands.
+fn run(
+    remote: Option<PathBuf>,
+    commands: pipewire::channel::Receiver<Command>,
+    events: &UnboundedSender<BackendEvent>,
+) {
     pipewire::init();
     let main_loop = match MainLoopRc::new(None) {
         Ok(main_loop) => main_loop,
@@ -102,20 +115,65 @@ fn run(remote: Option<PathBuf>, commands: pipewire::channel::Receiver<Command>) 
             return;
         }
     };
-    log::info(format_args!("vol-pw: started (remote {remote:?})"));
-    let quit = main_loop.downgrade();
-    let commands = commands.attach(main_loop.loop_(), move |cmd| match cmd {
-        Command::Shutdown => {
-            if let Some(main_loop) = quit.upgrade() {
-                main_loop.quit();
+    let out = Outbox(events.clone());
+    let shutdown = Rc::new(Cell::new(false));
+    let commands = commands.attach(main_loop.loop_(), {
+        let shutdown = Rc::clone(&shutdown);
+        let main_loop = main_loop.downgrade();
+        move |cmd| match cmd {
+            Command::Shutdown => {
+                shutdown.set(true);
+                if let Some(main_loop) = main_loop.upgrade() {
+                    main_loop.quit();
+                }
             }
+            other => log::debug(format_args!("vol-pw: command not supported: {other:?}")),
         }
-        other => log::debug(format_args!("vol-pw: command not supported: {other:?}")),
     });
-    main_loop.run();
+    let mut session = match Session::connect(&main_loop, remote.as_deref(), out.clone()) {
+        Ok(session) => Some(session),
+        Err(reason) => {
+            out.send(BackendEvent::Disconnected {
+                reason,
+                retry_in: None,
+                attempt: 1,
+            });
+            None
+        }
+    };
+    loop {
+        main_loop.run();
+        if shutdown.get() {
+            break;
+        }
+        // Otherwise a fatal core error quit the loop: tear the session down
+        // here, outside its callbacks.
+        if let Some(lost) = session.take() {
+            let reason = lost.lost().unwrap_or(DisconnectReason::ConnectionLost);
+            drop(lost);
+            log::info(format_args!("vol-pw: connection lost ({reason:?})"));
+            out.send(BackendEvent::Disconnected {
+                reason,
+                retry_in: None,
+                attempt: 0,
+            });
+        }
+    }
     log::info(format_args!("vol-pw: shutting down"));
+    drop(session);
     drop(commands);
     drop(main_loop);
+}
+
+/// Where the thread's events go.
+#[derive(Clone)]
+struct Outbox(UnboundedSender<BackendEvent>);
+
+impl Outbox {
+    /// Delivers `event`; dropped if the app is gone (it is exiting).
+    fn send(&self, event: BackendEvent) {
+        let _ = self.0.send(event);
+    }
 }
 
 #[cfg(test)]

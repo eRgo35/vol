@@ -2,8 +2,11 @@
 //!
 //! # Running
 //!
-//! `just test-live` (= `VOL_TEST_PIPEWIRE=1 cargo test --test live --
-//! --ignored --test-threads=1`). Every test is `#[ignore]`d, so `just check`
+//! `just test-live` (= `env -u PIPEWIRE_REMOTE -u PIPEWIRE_RUNTIME_DIR -u
+//! XDG_RUNTIME_DIR VOL_TEST_PIPEWIRE=1 cargo test --test live -- --ignored
+//! --test-threads=1`). The in-process backend is only ever given the private
+//! daemon's socket path, and tests refuse to run while any of those three
+//! variables could redirect it. Every test is `#[ignore]`d, so `just check`
 //! never runs them, and each returns early unless `VOL_TEST_PIPEWIRE=1`.
 //! Needs `pipewire` and `pw-cli`/`pw-dump` on `PATH`; `wireplumber` is
 //! optional (tests that need metadata skip without it).
@@ -47,27 +50,66 @@
 
 mod common;
 
+use std::path::PathBuf;
 use std::thread::sleep;
 use std::time::{Duration, Instant};
 
 use common::{PrivateDaemon, require_live};
 use tokio::sync::mpsc::error::TryRecvError;
 use vol::backend::pw::spawn_pipewire_at;
-use vol::backend::{BackendGone, BackendHandle, Command};
+use vol::backend::{BackendEvent, BackendGone, BackendHandle, Command, DisconnectReason};
 use vol::model::ObjectId;
 
-/// Spawns the backend on `daemon`'s socket, and only there.
+/// Spawns the in-process backend on the socket at `path`, and only there.
 ///
-/// `PIPEWIRE_REMOTE` would take precedence over the explicit socket and could
-/// point at the user's session, so its presence fails the test up front.
-fn start_backend(daemon: &PrivateDaemon) -> BackendHandle {
-    assert!(
-        std::env::var_os("PIPEWIRE_REMOTE").is_none(),
-        "PIPEWIRE_REMOTE is set; unset it (`just test-live` does) so the backend \
-         cannot reach a session other than the private daemon"
-    );
+/// `PIPEWIRE_REMOTE` would take precedence over the explicit socket, and the
+/// runtime-dir variables are where a default lookup would find the user's
+/// session, so any of them being set fails the test before connecting.
+fn spawn_at(path: PathBuf) -> BackendHandle {
+    for var in ["PIPEWIRE_REMOTE", "PIPEWIRE_RUNTIME_DIR", "XDG_RUNTIME_DIR"] {
+        assert!(
+            std::env::var_os(var).is_none(),
+            "{var} is set; run `just test-live`, which unsets it, so the backend \
+             cannot reach a session other than the private daemon"
+        );
+    }
     vol::log::init().unwrap();
-    spawn_pipewire_at(daemon.socket()).unwrap()
+    spawn_pipewire_at(path).unwrap()
+}
+
+/// Spawns the backend on `daemon`'s socket.
+fn start_backend(daemon: &PrivateDaemon) -> BackendHandle {
+    spawn_at(daemon.socket())
+}
+
+/// Next backend event within `timeout`; `None` on timeout or when the
+/// backend has closed its channel.
+fn next_event(handle: &mut BackendHandle, timeout: Duration) -> Option<BackendEvent> {
+    let deadline = Instant::now() + timeout;
+    loop {
+        match handle.events.try_recv() {
+            Ok(event) => return Some(event),
+            Err(TryRecvError::Disconnected) => return None,
+            Err(TryRecvError::Empty) if Instant::now() >= deadline => return None,
+            Err(TryRecvError::Empty) => sleep(Duration::from_millis(5)),
+        }
+    }
+}
+
+/// Waits (≤ 3 s) for `Connected` and checks it names the private socket.
+fn wait_connected(handle: &mut BackendHandle, daemon: &PrivateDaemon) {
+    let deadline = Instant::now() + Duration::from_secs(3);
+    loop {
+        let left = deadline.saturating_duration_since(Instant::now());
+        match next_event(handle, left) {
+            Some(BackendEvent::Connected { socket, .. }) => {
+                assert_eq!(socket, daemon.socket().display().to_string());
+                return;
+            }
+            Some(_) => {}
+            None => panic!("no Connected within 3 s"),
+        }
+    }
 }
 
 /// Drains events until the backend closes its channel (its thread is gone).
@@ -133,7 +175,8 @@ fn spawn_and_shutdown_within_one_second() {
         return;
     }
     let daemon = PrivateDaemon::start(false);
-    let handle = start_backend(&daemon);
+    let mut handle = start_backend(&daemon);
+    wait_connected(&mut handle, &daemon);
     let started = Instant::now();
     assert!(
         handle.shutdown(Duration::from_secs(1)),
@@ -150,6 +193,7 @@ fn sending_after_shutdown_returns_backend_gone() {
     }
     let daemon = PrivateDaemon::start(false);
     let mut handle = start_backend(&daemon);
+    wait_connected(&mut handle, &daemon);
     assert_eq!(handle.commands.send(Command::Shutdown), Ok(()));
     wait_closed(&mut handle, Duration::from_secs(1));
     let mute = Command::SetMute {
@@ -157,4 +201,30 @@ fn sending_after_shutdown_returns_backend_gone() {
         mute: true,
     };
     assert_eq!(handle.commands.send(mute), Err(BackendGone));
+}
+
+#[test]
+#[ignore = "live: needs PipeWire; run with `just test-live`"]
+fn no_daemon_reports_disconnected_no_daemon() {
+    if !require_live() {
+        return;
+    }
+    // A socket path in a directory that does not exist: nothing listens there.
+    let missing = std::env::temp_dir()
+        .join(format!("vol-no-daemon-{}", std::process::id()))
+        .join("pipewire-0");
+    assert!(!missing.exists());
+    let mut handle = spawn_at(missing);
+    let event = next_event(&mut handle, Duration::from_secs(1));
+    assert!(
+        matches!(
+            event,
+            Some(BackendEvent::Disconnected {
+                reason: DisconnectReason::NoDaemon,
+                ..
+            })
+        ),
+        "{event:?}"
+    );
+    assert!(handle.shutdown(Duration::from_secs(1)));
 }

@@ -18,7 +18,7 @@ test:
 
 # Live tests against a private PipeWire daemon (never the user's session)
 test-live:
-    env -u PIPEWIRE_REMOTE VOL_TEST_PIPEWIRE=1 cargo test --test live -- --ignored --test-threads=1
+    env -u PIPEWIRE_REMOTE -u PIPEWIRE_RUNTIME_DIR -u XDG_RUNTIME_DIR VOL_TEST_PIPEWIRE=1 cargo test --test live -- --ignored --test-threads=1
 
 # Build docs; broken docs are errors
 doc:
