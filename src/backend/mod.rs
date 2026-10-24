@@ -262,6 +262,22 @@ pub enum Command {
     Shutdown,
 }
 
+impl Command {
+    /// The kind reported in `CommandFailed`; `None` for `SetMeters` and `Shutdown`,
+    /// which never fail that way.
+    pub fn kind(&self) -> Option<CommandKind> {
+        match self {
+            Self::SetVolumes { .. } => Some(CommandKind::SetVolumes),
+            Self::SetMute { .. } => Some(CommandKind::SetMute),
+            Self::SetDefault { .. } => Some(CommandKind::SetDefault),
+            Self::MoveStream { .. } => Some(CommandKind::MoveStream),
+            Self::SetProfile { .. } => Some(CommandKind::SetProfile),
+            Self::SetRoute { .. } => Some(CommandKind::SetRoute),
+            Self::SetMeters { .. } | Self::Shutdown => None,
+        }
+    }
+}
+
 /// Which default to set.
 #[derive(Debug, Clone, PartialEq)]
 pub enum DefaultKind {
@@ -341,4 +357,52 @@ pub struct BackendHandle {
     pub commands: Box<dyn AudioBackend>,
     /// Where events come from.
     pub events: tokio::sync::mpsc::UnboundedReceiver<BackendEvent>,
+}
+
+impl BackendHandle {
+    /// A backend that never emits an event and accepts (and drops) every command.
+    pub fn inert() -> Self {
+        let (sender, events) = tokio::sync::mpsc::unbounded_channel();
+        Self {
+            commands: Box::new(InertBackend { _open: sender }),
+            events,
+        }
+    }
+}
+
+/// Command sink of [`BackendHandle::inert`].
+struct InertBackend {
+    /// Never used to send; held so the event channel stays open and `recv` pends forever.
+    _open: tokio::sync::mpsc::UnboundedSender<BackendEvent>,
+}
+
+impl AudioBackend for InertBackend {
+    fn send(&self, _cmd: Command) -> Result<(), BackendGone> {
+        Ok(())
+    }
+}
+
+#[cfg(any(test, feature = "mock"))]
+pub mod mock;
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use tokio::sync::mpsc::error::TryRecvError;
+
+    #[tokio::test]
+    async fn inert_backend_never_emits_and_accepts_commands() {
+        let mut handle = BackendHandle::inert();
+        assert_eq!(handle.commands.send(Command::Shutdown), Ok(()));
+        assert_eq!(
+            handle.commands.send(Command::SetMute {
+                node: ObjectId(1),
+                mute: true,
+            }),
+            Ok(())
+        );
+        assert_eq!(handle.events.try_recv(), Err(TryRecvError::Empty));
+        let waited = tokio::time::timeout(Duration::from_millis(20), handle.events.recv()).await;
+        assert!(waited.is_err(), "inert backend yielded {waited:?}");
+    }
 }
