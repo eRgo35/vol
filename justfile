@@ -16,6 +16,10 @@ clippy:
 test:
     cargo test --locked --all-features --all-targets
 
+# Live tests against a private PipeWire daemon (never the user's session)
+test-live:
+    VOL_TEST_PIPEWIRE=1 cargo test --test live -- --ignored --test-threads=1
+
 # Build docs; broken docs are errors
 doc:
     RUSTDOCFLAGS="-D warnings" cargo doc --no-deps --all-features --locked
