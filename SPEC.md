@@ -166,7 +166,7 @@ Every question carries a **Proposed default** so work can proceed; the defaults 
 | Q7 | `Audio/Duplex` nodes and "Monitor of …" entries in Input Devices: show or not? | Not stored / deferred. |
 | Q8 | Locked-channel scaling: balance-preserving (this spec) vs. set-all-equal? pavucontrol's exact behavior when channels differ is from memory only. | Balance-preserving (VOL-VM-008). |
 | Q9 | ASCII fallback glyph set for non-UTF-8 terminals/fonts? | None in v1. |
-| Q10 | Dependencies: `serde_json` (metadata JSON), `proptest`, `insta`, logging (`tracing` + `tracing-appender` vs. a hand-rolled file logger)? | `serde_json` yes; `proptest`/`insta` dev-only; hand-rolled logger, off by default. |
+| Q10 | Dependencies: `serde_json` (metadata JSON), `proptest`, `insta`, logging (`tracing` + `tracing-appender` vs. a hand-rolled file logger)? | Decided (dev-deps part): `proptest 1.12`, `insta 1.49` dev-only, 2026-10-24. Proposed: `serde_json` yes; hand-rolled logger, off by default. |
 | Q11 | Master volume display for unequal channels: max (this spec) vs. mean? | Max (VOL-VM-002). |
 | Q12 | Persist per-row UI state (lock) or filters across runs (needs a config/state file)? | No persistence. |
 | Q13 | Which property best decides "Hardware" vs "Virtual" (`device.id`, `node.virtual`, `device.bus`, `factory.name`)? | `device.id` present and `node.virtual != true` (VOL-OUT §2). |

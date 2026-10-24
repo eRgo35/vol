@@ -236,7 +236,7 @@ Each question has a **Proposed default** so work proceeds; the project owner may
 | Q7 `Audio/Duplex` / monitor entries as inputs | **Proposed default:** not stored / deferred (VOL-IN-008/009). | M5-T01 | Edit 01 §5 node-kind table, 05; moves IN-008 into a milestone. |
 | Q8 Locked-channel scaling | **Proposed default:** balance-preserving (VOL-VM-008). | M3-T01 | Edit VM-008, `volume.rs` tests (VOL-TEST-004). |
 | Q9 ASCII fallback | **Proposed default:** none in v1. | M8-T01 | New requirement + glyph table in 08 §10; theme gains a glyph set. |
-| Q10 Dependencies/logging | **Proposed default:** `serde_json` yes (metadata JSON, M1); `proptest`, `insta` dev-only (M0); hand-rolled file logger, off unless `VOL_LOG` (M1). | M0-T02 / M1-T06 | Swap in `tracing` + `tracing-appender` (ARCH-054 text). |
+| Q10 Dependencies/logging | **Decided (dev-deps, 2026-10-24):** `proptest`, `insta` dev-only (M0). **Proposed default:** `serde_json` yes (metadata JSON, M1); hand-rolled file logger, off unless `VOL_LOG` (M1). | M0-T02 / M1-T06 | Swap in `tracing` + `tracing-appender` (ARCH-054 text). |
 | Q11 Master display for unequal channels | **Proposed default:** max (VOL-VM-002). | M2-T01 | Edit VM-002/008 and tests. |
 | Q12 Persist UI state | **Proposed default:** no persistence in v1. | post-0.1 | New config-file spec; Backlog item. |
 | Q13 Hardware vs Virtual heuristic | **Proposed default:** `device.id` present and `node.virtual != true`. | M5-T01 | Edit 04 §2, `view::is_hardware` + tests. |
