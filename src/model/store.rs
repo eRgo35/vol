@@ -5,7 +5,7 @@ use std::time::Instant;
 
 use super::{
     Defaults, Device, Link, Node, NodeKind, NodeState, ObjectId, Port, StreamTarget,
-    is_audio_device,
+    is_audio_device, parse_default_name,
 };
 use crate::backend::{DisconnectReason, StoreEvent};
 
@@ -243,7 +243,44 @@ impl Store {
             }
             StoreEvent::LinkRemoved { id } => self.links.remove(&id).is_some(),
 
-            StoreEvent::Metadata { .. } | StoreEvent::MetadataCleared => false,
+            StoreEvent::Metadata {
+                subject,
+                key,
+                value,
+                ..
+            } => self.apply_metadata(subject, &key, value),
+            StoreEvent::MetadataCleared => {
+                let defaults_changed = replace(&mut self.defaults, Defaults::default());
+                let targets_changed = !self.stream_targets.is_empty();
+                self.stream_targets.clear();
+                defaults_changed | targets_changed
+            }
+        }
+    }
+
+    /// Subject 0: the four `default.*` keys (VOL-ARCH-025). Other subjects: `target.object`
+    /// and `target.node` of a stored stream node; `None` removes the key (VOL-ARCH-026).
+    /// Everything else is ignored.
+    fn apply_metadata(&mut self, subject: u32, key: &str, value: Option<String>) -> bool {
+        if subject == 0 {
+            return self
+                .defaults
+                .slot_mut(key)
+                .is_some_and(|slot| replace(slot, value.as_deref().and_then(parse_default_name)));
+        }
+        let id = ObjectId(subject);
+        if !self.nodes.contains_key(&id) {
+            return false;
+        }
+        let mut target = self.stream_targets.get(&id).cloned().unwrap_or_default();
+        let Some(slot) = target.slot_mut(key) else {
+            return false;
+        };
+        *slot = value;
+        if target == StreamTarget::default() {
+            self.stream_targets.remove(&id).is_some()
+        } else {
+            upsert(&mut self.stream_targets, id, target)
         }
     }
 }

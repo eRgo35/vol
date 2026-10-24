@@ -15,7 +15,7 @@ pub mod store;
 pub use device::{ActiveRoute, Availability, Device, Profile, RouteInfo, is_audio_device};
 pub use ids::{ObjectId, Serial};
 pub use link::Link;
-pub use metadata::{Defaults, StreamTarget};
+pub use metadata::{Defaults, StreamTarget, parse_default_name};
 pub use node::{Channel, Node, NodeAudio, NodeKind, NodeState};
 pub use port::{Port, PortDir};
 pub use props::{PropMap, PropMapExt};
