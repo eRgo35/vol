@@ -57,8 +57,10 @@ use std::time::{Duration, Instant};
 use common::{PrivateDaemon, require_live};
 use tokio::sync::mpsc::error::TryRecvError;
 use vol::backend::pw::spawn_pipewire_at;
-use vol::backend::{BackendEvent, BackendGone, BackendHandle, Command, DisconnectReason};
-use vol::model::ObjectId;
+use vol::backend::{
+    BackendEvent, BackendGone, BackendHandle, Command, DisconnectReason, StoreEvent,
+};
+use vol::model::{ObjectId, PortDir};
 
 /// Spawns the in-process backend on the socket at `path`, and only there.
 ///
@@ -77,9 +79,46 @@ fn spawn_at(path: PathBuf) -> BackendHandle {
     spawn_pipewire_at(path).unwrap()
 }
 
-/// Spawns the backend on `daemon`'s socket.
-fn start_backend(daemon: &PrivateDaemon) -> BackendHandle {
-    spawn_at(daemon.socket())
+/// Name of the null sink every connecting test creates.
+const SINK: &str = "vol-test-sink";
+
+/// A private daemon (with WirePlumber if asked) holding the null sink
+/// [`SINK`], and a backend connected to it. Returns the store events received
+/// up to `Connected`, after checking they come from the private daemon.
+fn start_private(with_wireplumber: bool) -> (PrivateDaemon, BackendHandle, Vec<StoreEvent>) {
+    let daemon = PrivateDaemon::start(with_wireplumber);
+    daemon.create_null_sink(SINK);
+    let needle = format!("\"node.name\": \"{SINK}\"");
+    let dump = wait_for_dump(&daemon, Duration::from_secs(3), |d| d.contains(&needle));
+    assert!(dump.contains(&needle), "{dump}");
+    let mut handle = spawn_at(daemon.socket());
+    let snapshot = wait_connected(&mut handle, &daemon);
+    assert_private(&snapshot);
+    (daemon, handle, snapshot)
+}
+
+/// The snapshot must hold the test's null sink and no hardware device:
+/// otherwise the backend is not talking to the private daemon.
+fn assert_private(snapshot: &[StoreEvent]) {
+    assert!(
+        snapshot.iter().any(|e| matches!(
+            e,
+            StoreEvent::NodeAdded { props, .. }
+                if props.get("node.name").map(String::as_str) == Some(SINK)
+        )),
+        "the private null sink is missing: {snapshot:?}"
+    );
+    let hardware: Vec<_> = snapshot
+        .iter()
+        .filter(|e| {
+            matches!(
+                e,
+                StoreEvent::DeviceAdded { props, .. }
+                    if props.get("media.class").map(String::as_str) == Some("Audio/Device")
+            )
+        })
+        .collect();
+    assert!(hardware.is_empty(), "not the private daemon: {hardware:?}");
 }
 
 /// Next backend event within `timeout`; `None` on timeout or when the
@@ -96,20 +135,41 @@ fn next_event(handle: &mut BackendHandle, timeout: Duration) -> Option<BackendEv
     }
 }
 
-/// Waits (≤ 3 s) for `Connected` and checks it names the private socket.
-fn wait_connected(handle: &mut BackendHandle, daemon: &PrivateDaemon) {
+/// Waits (≤ 3 s) for `Connected`, checks it names the private socket and
+/// returns the store events received before it, in order.
+fn wait_connected(handle: &mut BackendHandle, daemon: &PrivateDaemon) -> Vec<StoreEvent> {
     let deadline = Instant::now() + Duration::from_secs(3);
+    let mut snapshot = Vec::new();
     loop {
         let left = deadline.saturating_duration_since(Instant::now());
         match next_event(handle, left) {
             Some(BackendEvent::Connected { socket, .. }) => {
                 assert_eq!(socket, daemon.socket().display().to_string());
-                return;
+                return snapshot;
             }
-            Some(_) => {}
+            Some(BackendEvent::Batch(events)) => snapshot.extend(events),
+            Some(other) => panic!("unexpected before Connected: {other:?}"),
             None => panic!("no Connected within 3 s"),
         }
     }
+}
+
+/// Appends store events to `events` until `done(events)` holds (≤ 3 s).
+fn poll_until(
+    handle: &mut BackendHandle,
+    events: &mut Vec<StoreEvent>,
+    done: impl Fn(&[StoreEvent]) -> bool,
+) -> bool {
+    let deadline = Instant::now() + Duration::from_secs(3);
+    while !done(events) {
+        let left = deadline.saturating_duration_since(Instant::now());
+        match next_event(handle, left) {
+            Some(BackendEvent::Batch(batch)) => events.extend(batch),
+            Some(other) => panic!("unexpected event: {other:?}"),
+            None => return false,
+        }
+    }
+    true
 }
 
 /// Drains events until the backend closes its channel (its thread is gone).
@@ -174,9 +234,7 @@ fn spawn_and_shutdown_within_one_second() {
     if !require_live() {
         return;
     }
-    let daemon = PrivateDaemon::start(false);
-    let mut handle = start_backend(&daemon);
-    wait_connected(&mut handle, &daemon);
+    let (_daemon, handle, _) = start_private(false);
     let started = Instant::now();
     assert!(
         handle.shutdown(Duration::from_secs(1)),
@@ -191,9 +249,7 @@ fn sending_after_shutdown_returns_backend_gone() {
     if !require_live() {
         return;
     }
-    let daemon = PrivateDaemon::start(false);
-    let mut handle = start_backend(&daemon);
-    wait_connected(&mut handle, &daemon);
+    let (_daemon, mut handle, _) = start_private(false);
     assert_eq!(handle.commands.send(Command::Shutdown), Ok(()));
     wait_closed(&mut handle, Duration::from_secs(1));
     let mute = Command::SetMute {
@@ -226,5 +282,54 @@ fn no_daemon_reports_disconnected_no_daemon() {
         ),
         "{event:?}"
     );
+    assert!(handle.shutdown(Duration::from_secs(1)));
+}
+
+#[test]
+#[ignore = "live: needs PipeWire; run with `just test-live`"]
+fn registry_snapshot_contains_a_sink() {
+    if !require_live() {
+        return;
+    }
+    let (mut daemon, mut handle, snapshot) = start_private(true);
+    let sink = snapshot.iter().find_map(|e| match e {
+        StoreEvent::NodeAdded { id, props, .. }
+            if props.get("node.name").map(String::as_str) == Some(SINK) =>
+        {
+            Some((*id, props.clone()))
+        }
+        _ => None,
+    });
+    let (id, props) = sink.expect("NodeAdded for the null sink");
+    assert_eq!(props["media.class"], "Audio/Sink");
+    let mut events = snapshot;
+    let is_info = |e: &StoreEvent| {
+        matches!(
+            e,
+            StoreEvent::NodeInfo { id: info_id, props, .. }
+                if *info_id == id && props.contains_key("node.name")
+        )
+    };
+    assert!(
+        poll_until(&mut handle, &mut events, |all| all.iter().any(is_info)),
+        "no NodeInfo for the sink: {events:?}"
+    );
+    // The adapter gets its ports only once a session manager configures it.
+    if daemon.has_wireplumber() {
+        let inputs = |all: &[StoreEvent]| {
+            all.iter()
+                .filter(|e| {
+                    matches!(
+                        e,
+                        StoreEvent::PortAdded { node, dir: PortDir::In, .. } if *node == id
+                    )
+                })
+                .count()
+        };
+        assert!(
+            poll_until(&mut handle, &mut events, |all| inputs(all) == 2),
+            "expected FL/FR input ports: {events:?}"
+        );
+    }
     assert!(handle.shutdown(Duration::from_secs(1)));
 }

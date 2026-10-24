@@ -5,16 +5,37 @@
 //! attached to its main loop (VOL-ARCH-011); events leave through a tokio
 //! unbounded channel, whose non-async `send` never touches PipeWire.
 //!
+//! # Shared state
+//!
+//! Each connection is a `conn::Session` owning one `State` behind
+//! `Rc<RefCell<…>>`. Listener closures hold only `Weak` references (to the
+//! state, the registry, the main loop), so there are no reference cycles;
+//! they borrow the state briefly through `conn::with_state` and never call
+//! into PipeWire while it is borrowed (binding, `sync`, `quit` and dropping
+//! proxies all happen outside the borrow).
+//!
 //! # Teardown order
 //!
-//! The thread body (`run`) returns only after the main loop has stopped,
-//! then drops, in this order: the attached command receiver (a loop source),
-//! the main loop. Only after that does the thread drop its liveness token and
-//! the exit signal of [`BackendHandle::shutdown`], and last the event sender,
-//! so an app that sees the event channel close knows no PipeWire object is left.
+//! Teardown never happens inside a PipeWire callback: a fatal core error only
+//! sets a flag and quits the loop, and `run` drops the session after
+//! `MainLoop::run` returns. A session drops, in this order (its field order):
+//!
+//! 1. the state, with every bound node/device: each listener before its
+//!    proxy (a proxy destroy frees the hook list its listener is linked into);
+//! 2. the registry listener, then the registry proxy;
+//! 3. the core listener, then the core (`pw_core_disconnect` destroys any
+//!    proxy still alive, so all of ours must be gone by then);
+//! 4. the context.
+//!
+//! On shutdown `run` then drops the attached command receiver (a loop
+//! source) and the main loop. Only after that does the thread drop its
+//! liveness token and the exit signal of [`BackendHandle::shutdown`], and last
+//! the event sender, so an app that sees the event channel close knows no
+//! PipeWire object is left.
 
 mod conn;
 pub mod params;
+mod registry;
 
 use std::cell::Cell;
 use std::io;
@@ -28,7 +49,7 @@ use tokio::sync::mpsc::{UnboundedSender, unbounded_channel};
 
 use super::{
     AudioBackend, BackendEvent, BackendGone, BackendHandle, BackendThread, Command,
-    DisconnectReason,
+    DisconnectReason, StoreEvent,
 };
 use crate::log;
 use conn::Session;
@@ -170,6 +191,13 @@ fn run(
 struct Outbox(UnboundedSender<BackendEvent>);
 
 impl Outbox {
+    /// Delivers one registry/param change. Until the 16 ms flush timer exists
+    /// (M1-T13) every change is its own `Batch`; this is the single place
+    /// where coalescing will hook in.
+    fn store(&self, event: StoreEvent) {
+        self.send(BackendEvent::Batch(vec![event]));
+    }
+
     /// Delivers `event`; dropped if the app is gone (it is exiting).
     fn send(&self, event: BackendEvent) {
         let _ = self.0.send(event);

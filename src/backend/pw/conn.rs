@@ -15,8 +15,10 @@ use pipewire::context::ContextRc;
 use pipewire::core::{CoreRc, PW_ID_CORE};
 use pipewire::main_loop::MainLoopRc;
 use pipewire::properties::PropertiesBox;
+use pipewire::registry::RegistryRc;
 
 use super::Outbox;
+use super::registry::{self, Objects};
 use crate::backend::{BackendEvent, DisconnectReason};
 use crate::log;
 
@@ -59,7 +61,10 @@ pub(super) fn socket_description(
 /// Everything the listeners of one connection share. Borrowed only briefly,
 /// never across a call into PipeWire (see [`with_state`]).
 pub(super) struct State {
-    out: Outbox,
+    pub(super) out: Outbox,
+    /// Bound proxies and tracked ids; dropped with the state, before the
+    /// registry and the core.
+    pub(super) objects: Objects,
     socket: String,
     server_version: String,
     /// Seq of the initial `core.sync`, until its `done` arrives.
@@ -77,6 +82,7 @@ impl State {
                 "vol-pw: connected to {} (PipeWire {})",
                 self.socket, self.server_version
             ));
+            log::debug(format_args!("vol-pw: snapshot: {}", self.objects.counts()));
             self.out.send(BackendEvent::Connected {
                 server_version: self.server_version.clone(),
                 socket: self.socket.clone(),
@@ -102,9 +108,11 @@ pub(super) fn with_state<R>(
     Some(f(&mut state))
 }
 
-/// One connection to the daemon. Field order is drop order.
+/// One connection to the daemon. Field order is drop order (`pw/mod.rs`).
 pub(super) struct Session {
     state: Rc<RefCell<State>>,
+    _registry_listener: pipewire::registry::Listener,
+    _registry: RegistryRc,
     _core_listener: pipewire::core::Listener,
     _core: CoreRc,
     _context: ContextRc,
@@ -146,6 +154,7 @@ impl Session {
 
         let state = Rc::new(RefCell::new(State {
             out,
+            objects: Objects::default(),
             socket,
             server_version: String::new(),
             initial_sync: None,
@@ -182,6 +191,27 @@ impl Session {
                 }
             })
             .register();
+        let registry = core.get_registry_rc().map_err(|err| {
+            log::warn(format_args!("vol-pw: cannot get registry: {err}"));
+            DisconnectReason::ConnectionLost
+        })?;
+        let registry_listener = registry
+            .add_listener_local()
+            .global({
+                let state = Rc::downgrade(&state);
+                let registry = registry.downgrade();
+                move |global| {
+                    if let Some(registry) = registry.upgrade() {
+                        registry::on_global(&state, &registry, global);
+                    }
+                }
+            })
+            .global_remove({
+                let state = Rc::downgrade(&state);
+                move |id| registry::on_global_remove(&state, id)
+            })
+            .register();
+        // Its `done` arrives after the daemon has sent every existing global.
         let seq = core.sync(0).map_err(|err| {
             log::warn(format_args!("vol-pw: initial sync failed: {err}"));
             DisconnectReason::ConnectionLost
@@ -189,6 +219,8 @@ impl Session {
         state.borrow_mut().initial_sync = Some(seq.seq());
         Ok(Self {
             state,
+            _registry_listener: registry_listener,
+            _registry: registry,
             _core_listener: core_listener,
             _core: core,
             _context: context,
