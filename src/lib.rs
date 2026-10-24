@@ -3,9 +3,11 @@
 
 pub mod action;
 pub mod app;
+pub mod backend;
 pub mod cli;
 pub mod event;
 pub mod keymap;
+pub mod model;
 pub mod tabs;
 pub mod theme;
 pub mod ui;
