@@ -20,6 +20,7 @@ use pipewire::types::ObjectType;
 
 use super::Outbox;
 use super::conn::{State, with_state};
+use super::metadata::{self, DefaultMetadata};
 use super::params;
 use crate::backend::StoreEvent;
 use crate::log;
@@ -312,34 +313,49 @@ pub(super) fn on_global(
             }
             None => log::debug(format_args!("vol-pw: link {} skipped: {props:?}", id.0)),
         },
+        ObjectType::Metadata => metadata::bind(state, registry, global, &props),
         _ => {}
     }
 }
 
-/// Registry `global_remove` handler. A removed proxy is dropped after the
-/// state borrow ends.
+/// What a `global_remove` took out of the state, held only so that its
+/// proxy is dropped after the state borrow has ended.
+enum Removed {
+    Node { _bound: BoundNode },
+    Device { _bound: BoundDevice },
+    Metadata { _bound: DefaultMetadata },
+    Nothing,
+}
+
+/// Registry `global_remove` handler.
 pub(super) fn on_global_remove(state: &Weak<RefCell<State>>, id: u32) {
     let id = ObjectId(id);
     let removed = with_state(state, |s| {
         let objects = &mut s.objects;
-        let (event, node, device) = if let Some(node) = objects.nodes.remove(&id) {
-            (Some(StoreEvent::NodeRemoved { id }), Some(node), None)
+        let (event, removed) = if let Some(node) = objects.nodes.remove(&id) {
+            (
+                StoreEvent::NodeRemoved { id },
+                Removed::Node { _bound: node },
+            )
         } else if let Some(device) = objects.devices.remove(&id) {
             objects.profiles.remove(id);
             objects.routes.remove(id);
             objects.active_routes.remove(id);
-            (Some(StoreEvent::DeviceRemoved { id }), None, Some(device))
+            let removed = Removed::Device { _bound: device };
+            (StoreEvent::DeviceRemoved { id }, removed)
         } else if objects.ports.remove(&id) {
-            (Some(StoreEvent::PortRemoved { id }), None, None)
+            (StoreEvent::PortRemoved { id }, Removed::Nothing)
         } else if objects.links.remove(&id) {
-            (Some(StoreEvent::LinkRemoved { id }), None, None)
+            (StoreEvent::LinkRemoved { id }, Removed::Nothing)
+        } else if let Some(metadata) = s.metadata.take_if(|m| m.id == id) {
+            log::debug(format_args!("vol-pw: default metadata {} removed", id.0));
+            let removed = Removed::Metadata { _bound: metadata };
+            (StoreEvent::MetadataCleared, removed)
         } else {
-            (None, None, None)
+            return Removed::Nothing;
         };
-        if let Some(event) = event {
-            s.out.store(event);
-        }
-        (node, device)
+        s.out.store(event);
+        removed
     });
     drop(removed);
 }

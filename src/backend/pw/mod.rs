@@ -20,8 +20,9 @@
 //! sets a flag and quits the loop, and `run` drops the session after
 //! `MainLoop::run` returns. A session drops, in this order (its field order):
 //!
-//! 1. the state, with every bound node/device: each listener before its
-//!    proxy (a proxy destroy frees the hook list its listener is linked into);
+//! 1. the state, with every bound node/device and the `default` metadata:
+//!    each listener before its proxy (a proxy destroy frees the hook list
+//!    its listener is linked into);
 //! 2. the registry listener, then the registry proxy;
 //! 3. the core listener, then the core (`pw_core_disconnect` destroys any
 //!    proxy still alive, so all of ours must be gone by then);
@@ -34,6 +35,7 @@
 //! PipeWire object is left.
 
 mod conn;
+mod metadata;
 pub mod params;
 mod registry;
 

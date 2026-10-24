@@ -114,6 +114,19 @@ impl PrivateDaemon {
             .is_some_and(|wp| matches!(wp.try_wait(), Ok(None)))
     }
 
+    /// Kills the private `wireplumber` and starts a new one with the same
+    /// environment and drop-in (a session-manager restart while the daemon
+    /// stays up). Returns false if no WirePlumber was running.
+    pub fn restart_wireplumber(&mut self) -> bool {
+        let Some(mut old) = self.wireplumber.take() else {
+            return false;
+        };
+        let _ = old.kill();
+        let _ = old.wait();
+        self.wireplumber = Some(spawn_logged(&self.root, "wireplumber"));
+        true
+    }
+
     /// Creates a stereo `support.null-audio-sink` named `name` that outlives
     /// the `pw-cli` process (`object.linger`).
     pub fn create_null_sink(&self, name: &str) {

@@ -18,6 +18,7 @@ use pipewire::properties::PropertiesBox;
 use pipewire::registry::RegistryRc;
 
 use super::Outbox;
+use super::metadata::DefaultMetadata;
 use super::registry::{self, InitialSync, Objects, SyncStep};
 use crate::backend::{BackendEvent, DisconnectReason};
 use crate::log;
@@ -65,6 +66,8 @@ pub(super) struct State {
     /// Bound proxies and tracked ids; dropped with the state, before the
     /// registry and the core.
     pub(super) objects: Objects,
+    /// The bound `default` metadata, if any.
+    pub(super) metadata: Option<DefaultMetadata>,
     socket: String,
     server_version: String,
     /// Progress of the initial snapshot.
@@ -176,6 +179,7 @@ impl Session {
         let state = Rc::new(RefCell::new(State {
             out,
             objects: Objects::default(),
+            metadata: None,
             socket,
             server_version: String::new(),
             sync: InitialSync::Starting,

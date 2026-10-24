@@ -50,6 +50,7 @@
 
 mod common;
 
+use std::io::Write;
 use std::path::PathBuf;
 use std::thread::sleep;
 use std::time::{Duration, Instant};
@@ -369,5 +370,71 @@ fn connected_arrives_after_snapshot_with_params() {
         e,
         StoreEvent::NodeInfo { id: info_id, .. } if *info_id == id
     )));
+    assert!(handle.shutdown(Duration::from_secs(1)));
+}
+
+/// True if `events` set `default.audio.sink` to the test's null sink.
+fn sets_default_sink(events: &[StoreEvent]) -> bool {
+    events.iter().any(|e| {
+        matches!(
+            e,
+            StoreEvent::Metadata { subject: 0, key, value: Some(value), .. }
+                if key == "default.audio.sink" && value.contains(SINK)
+        )
+    })
+}
+
+/// Notes on stderr that a WirePlumber-dependent test was skipped.
+fn skip_without_wireplumber() {
+    let _ = writeln!(
+        std::io::stderr(),
+        "skipped: wireplumber is not available for the private session"
+    );
+}
+
+#[test]
+#[ignore = "live: needs PipeWire; run with `just test-live`"]
+fn default_metadata_exposes_default_audio_sink() {
+    if !require_live() {
+        return;
+    }
+    let (mut daemon, mut handle, mut events) = start_private(true);
+    if !daemon.has_wireplumber() {
+        skip_without_wireplumber();
+        return;
+    }
+    assert!(
+        poll_until(&mut handle, &mut events, sets_default_sink),
+        "no default.audio.sink: {events:?}"
+    );
+    assert!(handle.shutdown(Duration::from_secs(1)));
+}
+
+#[test]
+#[ignore = "live: needs PipeWire; run with `just test-live`"]
+fn wireplumber_restart_clears_and_rebinds_default_metadata() {
+    if !require_live() {
+        return;
+    }
+    let (mut daemon, mut handle, mut events) = start_private(true);
+    if !daemon.has_wireplumber() {
+        skip_without_wireplumber();
+        return;
+    }
+    assert!(poll_until(&mut handle, &mut events, sets_default_sink));
+    let before = events.len();
+    assert!(daemon.restart_wireplumber());
+    let cleared_then_set = |all: &[StoreEvent]| {
+        let after = &all[before..];
+        after
+            .iter()
+            .position(|e| *e == StoreEvent::MetadataCleared)
+            .is_some_and(|i| sets_default_sink(&after[i..]))
+    };
+    assert!(
+        poll_until(&mut handle, &mut events, cleared_then_set),
+        "{:?}",
+        &events[before..]
+    );
     assert!(handle.shutdown(Duration::from_secs(1)));
 }
