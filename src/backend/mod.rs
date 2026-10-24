@@ -359,6 +359,17 @@ pub struct BackendHandle {
     pub commands: Box<dyn AudioBackend>,
     /// Where events come from.
     pub events: tokio::sync::mpsc::UnboundedReceiver<BackendEvent>,
+    /// The backend's own OS thread; `None` for in-process backends.
+    thread: Option<BackendThread>,
+}
+
+/// A backend OS thread and the signal that it has finished.
+struct BackendThread {
+    /// Joined by [`BackendHandle::shutdown`].
+    handle: std::thread::JoinHandle<()>,
+    /// Disconnects once the thread has dropped every PipeWire object and is
+    /// returning (nothing is ever sent on it).
+    exited: std::sync::mpsc::Receiver<()>,
 }
 
 impl BackendHandle {
@@ -368,7 +379,30 @@ impl BackendHandle {
         Self {
             commands: Box::new(InertBackend { _open: sender }),
             events,
+            thread: None,
         }
+    }
+
+    /// Sends [`Command::Shutdown`] and waits up to `timeout` for the backend
+    /// thread to finish (VOL-ARCH-013). Returns `false` if it did not; the
+    /// thread is then logged and left detached so the app can still exit.
+    pub fn shutdown(self, timeout: Duration) -> bool {
+        // An already gone backend needs no shutdown; the join below reaps it.
+        let _ = self.commands.send(Command::Shutdown);
+        let Some(thread) = self.thread else {
+            return true;
+        };
+        if let Err(std::sync::mpsc::RecvTimeoutError::Timeout) = thread.exited.recv_timeout(timeout)
+        {
+            crate::log::warn(format_args!(
+                "backend thread did not exit within {timeout:?}; detaching it"
+            ));
+            return false;
+        }
+        if thread.handle.join().is_err() {
+            crate::log::error(format_args!("backend thread panicked"));
+        }
+        true
     }
 }
 

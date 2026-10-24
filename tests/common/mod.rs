@@ -94,6 +94,12 @@ impl PrivateDaemon {
         private_env(&self.root)
     }
 
+    /// Absolute path of this daemon's socket, for in-process clients that
+    /// connect to it explicitly.
+    pub fn socket(&self) -> PathBuf {
+        self.root.join("pipewire-0")
+    }
+
     /// `program` with a cleared environment plus [`Self::env`].
     pub fn command(&self, program: &str) -> Command {
         let mut cmd = Command::new(program);

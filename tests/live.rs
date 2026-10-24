@@ -51,6 +51,38 @@ use std::thread::sleep;
 use std::time::{Duration, Instant};
 
 use common::{PrivateDaemon, require_live};
+use tokio::sync::mpsc::error::TryRecvError;
+use vol::backend::pw::spawn_pipewire_at;
+use vol::backend::{BackendGone, BackendHandle, Command};
+use vol::model::ObjectId;
+
+/// Spawns the backend on `daemon`'s socket, and only there.
+///
+/// `PIPEWIRE_REMOTE` would take precedence over the explicit socket and could
+/// point at the user's session, so its presence fails the test up front.
+fn start_backend(daemon: &PrivateDaemon) -> BackendHandle {
+    assert!(
+        std::env::var_os("PIPEWIRE_REMOTE").is_none(),
+        "PIPEWIRE_REMOTE is set; unset it (`just test-live` does) so the backend \
+         cannot reach a session other than the private daemon"
+    );
+    vol::log::init().unwrap();
+    spawn_pipewire_at(daemon.socket()).unwrap()
+}
+
+/// Drains events until the backend closes its channel (its thread is gone).
+fn wait_closed(handle: &mut BackendHandle, timeout: Duration) {
+    let deadline = Instant::now() + timeout;
+    loop {
+        match handle.events.try_recv() {
+            Err(TryRecvError::Disconnected) => return,
+            Ok(_) | Err(TryRecvError::Empty) => {
+                assert!(Instant::now() < deadline, "backend thread still running");
+                sleep(Duration::from_millis(5));
+            }
+        }
+    }
+}
 
 /// Polls `pw-dump` until `pred` holds, for at most `timeout`.
 fn wait_for_dump(daemon: &PrivateDaemon, timeout: Duration, pred: impl Fn(&str) -> bool) -> String {
@@ -92,4 +124,37 @@ fn private_daemon_starts_and_has_null_sink() {
             "{dump}"
         );
     }
+}
+
+#[test]
+#[ignore = "live: needs PipeWire; run with `just test-live`"]
+fn spawn_and_shutdown_within_one_second() {
+    if !require_live() {
+        return;
+    }
+    let daemon = PrivateDaemon::start(false);
+    let handle = start_backend(&daemon);
+    let started = Instant::now();
+    assert!(
+        handle.shutdown(Duration::from_secs(1)),
+        "not joined in time"
+    );
+    assert!(started.elapsed() < Duration::from_secs(1));
+}
+
+#[test]
+#[ignore = "live: needs PipeWire; run with `just test-live`"]
+fn sending_after_shutdown_returns_backend_gone() {
+    if !require_live() {
+        return;
+    }
+    let daemon = PrivateDaemon::start(false);
+    let mut handle = start_backend(&daemon);
+    assert_eq!(handle.commands.send(Command::Shutdown), Ok(()));
+    wait_closed(&mut handle, Duration::from_secs(1));
+    let mute = Command::SetMute {
+        node: ObjectId(1),
+        mute: true,
+    };
+    assert_eq!(handle.commands.send(mute), Err(BackendGone));
 }

@@ -114,6 +114,7 @@ pub fn spawn_mock(script: MockScript) -> (BackendHandle, MockControl) {
     let handle = BackendHandle {
         commands: Box::new(backend),
         events,
+        thread: None,
     };
     (
         handle,
@@ -189,7 +190,9 @@ mod tests {
     #[test]
     fn send_after_receiver_dropped_returns_backend_gone() {
         let (handle, control) = spawn_mock(disconnected(DisconnectReason::NoDaemon));
-        let BackendHandle { commands, events } = handle;
+        let BackendHandle {
+            commands, events, ..
+        } = handle;
         drop(events);
         assert_eq!(commands.send(mute(1)), Err(BackendGone));
         assert_eq!(control.push(BackendEvent::Meters(vec![])), Err(BackendGone));
