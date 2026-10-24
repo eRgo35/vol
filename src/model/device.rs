@@ -21,6 +21,13 @@ pub struct Device {
     pub active_routes: Vec<ActiveRoute>,
 }
 
+/// True iff `media.class` is exactly `Audio/Device`; only those devices are stored.
+pub fn is_audio_device(props: &PropMap) -> bool {
+    props
+        .get("media.class")
+        .is_some_and(|c| c == "Audio/Device")
+}
+
 /// One `EnumProfile` entry.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Profile {
@@ -99,6 +106,16 @@ mod tests {
         assert_eq!(Availability::from_spa(0), Availability::Unknown);
         assert_eq!(Availability::from_spa(1), Availability::No);
         assert_eq!(Availability::from_spa(2), Availability::Yes);
+    }
+
+    #[test]
+    fn only_audio_device_class_is_audio_device() {
+        let with_class = |class: &str| PropMap::from([("media.class".into(), class.into())]);
+        assert!(is_audio_device(&with_class("Audio/Device")));
+        assert!(!is_audio_device(&with_class("Video/Device")));
+        assert!(!is_audio_device(&with_class("Audio/Device/Foo")));
+        assert!(!is_audio_device(&with_class("")));
+        assert!(!is_audio_device(&PropMap::new()));
     }
 
     #[test]
