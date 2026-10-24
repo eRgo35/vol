@@ -126,6 +126,8 @@ pub fn tab_bar_layout(titles: &[String], selected: usize, width: u16) -> TabBarL
     };
     layout.push(lead(start), None);
     let mut used = cells(lead(start));
+    // Segment index of the last title drawn in full.
+    let mut last_whole = None;
     let mut hidden_right = false;
     for (i, title) in titles.iter().enumerate().skip(start) {
         let divider = if i > start { DIVIDER } else { "" };
@@ -134,20 +136,42 @@ pub fn tab_bar_layout(titles: &[String], selected: usize, width: u16) -> TabBarL
         if cells(title) <= room {
             layout.push(divider, None);
             layout.push(title.as_str(), Some(i));
+            last_whole = Some(layout.segments.len() - 1);
             used += cells(divider) + cells(title);
             continue;
         }
-        if room > 0 {
+        // Cut at a word boundary; only the selected title is cut mid-word.
+        let cut = word_prefix(title, room)
+            .or_else(|| (i == selected && room > 0).then(|| truncate(title, room)));
+        if let Some(cut) = &cut {
             layout.push(divider, None);
-            layout.push(truncate(title, room), Some(i));
+            layout.push(cut.as_str(), Some(i));
+            last_whole = None;
         }
-        hidden_right = i + 1 < count;
+        hidden_right = cut.is_none() || i + 1 < count;
         break;
     }
     if hidden_right {
+        // Shorten the last full title so the bar visibly continues.
+        if let Some(segment) = last_whole.and_then(|k| layout.segments.get_mut(k))
+            && segment.tab != Some(selected)
+            && let Some(short) = word_prefix(&segment.text, cells(&segment.text).saturating_sub(1))
+        {
+            segment.text = short;
+        }
         layout.push(MORE_RIGHT, None);
     }
     clip(layout, width)
+}
+
+/// The longest run of leading whole words of `title`, followed by `…`, that
+/// is shorter than `title` and fits in `max` cells.
+fn word_prefix(title: &str, max: usize) -> Option<String> {
+    let words: Vec<&str> = title.split(' ').collect();
+    (1..words.len())
+        .rev()
+        .map(|n| format!("{}…", words[..n].join(" ")))
+        .find(|prefix| prefix.chars().count() <= max)
 }
 
 /// `text` cut to `max` cells, ending in `…` if anything was cut.
@@ -304,18 +328,30 @@ mod tests {
 
     #[test]
     fn tab_bar_overflow_at_40_selected_first() {
-        // 08 §2 algorithm at W = 40: "Output Devices" fits exactly before ` ▸`.
-        assert_eq!(bar(0, 40), " Playback │ Recording │ Output Devices ▸");
-        // The 08 §2 example string is what the algorithm gives at W = 33.
+        // The 08 §2 example: tabs stay hidden, so the last title is shortened.
+        assert_eq!(bar(0, 40), " Playback │ Recording │ Output… ▸");
+        // Narrower: "Output Devices" does not fit and is cut at a word boundary.
         assert_eq!(bar(0, 33), " Playback │ Recording │ Output… ▸");
+        // Wider: "Input Devices" is cut, "Configuration" hidden.
+        assert_eq!(
+            bar(0, 50),
+            " Playback │ Recording │ Output Devices │ Input… ▸"
+        );
+        assert_eq!(
+            bar(0, 60),
+            " Playback │ Recording │ Output Devices │ Input… ▸"
+        );
     }
 
     #[test]
     fn tab_bar_scrolls_so_selected_fits() {
         assert_eq!(bar(4, 40), "◂ Input Devices │ Configuration");
-        // Fills the width; the last title (not hidden, only cut) gets `…`.
-        assert_eq!(bar(3, 40), "◂ Output Devices │ Input Devices │ Conf…");
-        assert_eq!(bar(1, 40), " Playback │ Recording │ Output Devices ▸");
+        // "Configuration" has no word that fits: hidden. The selected title
+        // is never shortened.
+        assert_eq!(bar(3, 40), "◂ Output Devices │ Input Devices ▸");
+        assert_eq!(bar(1, 40), " Playback │ Recording │ Output… ▸");
+        // A single-word title cannot be shortened at a word boundary.
+        assert_eq!(bar(0, 32), " Playback │ Recording ▸");
         // Narrower than lead + selected title: the selected title is cut.
         assert_eq!(bar(2, 10), "◂ Outpu… ▸");
     }

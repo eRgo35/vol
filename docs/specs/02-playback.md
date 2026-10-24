@@ -143,7 +143,7 @@ Unlocked first row, 40×16 (Narrow tier; first channel focused; tab bar overflow
 ```
 60×10 (Mid tier):
 ```
- Playback │ Recording │ Output Devices │ Input ▸            
+ Playback │ Recording │ Output Devices │ Input… ▸           
  Show: Applications (f)                          1 stream   
 ▌● Firefox: Playing music                    → Analog Stereo
 ▌ [ ] ━━━━━━━━━━━━━━━━━━━───────┃─────────────  72% ████····
