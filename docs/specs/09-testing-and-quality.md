@@ -80,12 +80,12 @@ Each item is binary. "Compare" items use black-box CLIs only.
 
 | ID | Level | Requirement | Status |
 |---|---|---|---|
-| VOL-QA-001 | MUST | `cargo fmt --all -- --check` clean. | Stub (`just fmt` recipe exists; tree not yet verified) |
+| VOL-QA-001 | MUST | `cargo fmt --all -- --check` clean. | Implemented |
 | VOL-QA-002 | MUST | `cargo clippy --all-targets --all-features --locked -- -D warnings` clean on stable and on MSRV. Additional crate-level lints: `#![deny(unsafe_code)]` (exception: `backend/pw/**` with a `// SAFETY:` comment per unsafe block, only if `libspa`'s safe pod API proves insufficient), `clippy::unwrap_used`/`expect_used` = warn outside tests, `clippy::dbg_macro`/`todo`/`print_stdout`/`print_stderr` = deny (stdout/stderr are the terminal). | Stub (`just clippy` exists with `-D warnings`; crate-level lint policy missing) |
 | VOL-QA-003 | MUST | MSRV **1.88** (required by `ratatui 0.30`; raised from 1.85, 2026-10-24); `rust-version = "1.88"` in `Cargo.toml`; `just msrv` runs `cargo +1.88 check --locked --all-features --all-targets`. VERIFY that `pipewire 0.10`/`libspa 0.10` and the chosen dev-deps compile on 1.88. | Missing |
 | VOL-QA-004 | MUST | `just test` (`cargo test --locked --all-features --all-targets`) runs on the developer's Linux machine with libpipewire headers installed, **without** requiring a PipeWire daemon. L5 tests are `#[ignore]`. | Stub (`just test` exists; no tests yet) |
-| VOL-QA-005 | MUST | `RUSTDOCFLAGS="-D warnings" cargo doc --no-deps --all-features --locked` clean. | Stub (`just doc` exists with `-D warnings`) |
-| VOL-QA-006 | SHOULD | `cargo deny check` (licenses permissive-only; `pipewire`/`libspa` are MIT). | Stub (`deny.toml` and `just deny` exist; not yet run against the final dependency set) |
+| VOL-QA-005 | MUST | `RUSTDOCFLAGS="-D warnings" cargo doc --no-deps --all-features --locked` clean. | Implemented |
+| VOL-QA-006 | SHOULD | `cargo deny check` (licenses permissive-only; `pipewire`/`libspa` are MIT). | Implemented (duplicate-version warnings only) |
 | VOL-QA-007 | MUST | No test or code path touches the user's real audio session unless `VOL_TEST_PIPEWIRE=1`. | Missing |
 | VOL-QA-008 | MUST | Public behavior changes update `README.md` (usage, keys, flags, requirements) in the same change; the template README is replaced. | Missing |
 | VOL-QA-009 | MUST | The pre-push hook (`scripts/hooks/pre-push`) runs `just check` and is the enforcement point for VOL-QA-001…006; `git push --no-verify` is reserved for emergencies and MUST NOT be used to land a milestone. | Implemented (hook and installer exist) |
