@@ -7,6 +7,7 @@ pub mod backend;
 pub mod cli;
 pub mod event;
 pub mod keymap;
+pub mod log;
 pub mod model;
 pub mod tabs;
 pub mod theme;

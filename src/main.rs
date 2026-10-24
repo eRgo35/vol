@@ -9,8 +9,8 @@ use vol::cli;
 use vol::event::EventHandler;
 use vol::theme;
 
-/// Startup order per VOL-ARCH-060: CLI → color-eyre → backend → terminal →
-/// app and events → run → restore on every exit path.
+/// Startup order per VOL-ARCH-060: CLI → color-eyre → file logger → backend →
+/// terminal → app and events → run → restore on every exit path.
 #[tokio::main]
 async fn main() -> color_eyre::Result<ExitCode> {
     let args = std::env::args_os()
@@ -32,6 +32,10 @@ async fn main() -> color_eyre::Result<ExitCode> {
         return Ok(ExitCode::SUCCESS);
     }
     color_eyre::install()?;
+    // Still before raw mode, so stderr is usable for this one notice.
+    if let Err(err) = vol::log::init() {
+        writeln!(std::io::stderr(), "vol: file logging disabled: {err}")?;
+    }
     let no_color = std::env::var_os("NO_COLOR").map(|v| v.to_string_lossy().into_owned());
     let options = Options {
         color: theme::color_enabled(cli.no_color, no_color.as_deref()),
