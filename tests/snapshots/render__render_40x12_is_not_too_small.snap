@@ -1,0 +1,16 @@
+---
+source: tests/render.rs
+expression: framed(&buf)
+---
+" Playback │ Recording │ Output… ▸       "
+" Show: —                                "
+"                                        "
+"                                        "
+"                                        "
+"                                        "
+"                Playback                "
+"         (not implemented yet)          "
+"                                        "
+"                                        "
+"                                        "
+" ○ connecting…                  │ ? help"

@@ -64,9 +64,11 @@ fn render_60x24_snapshot() {
 
 #[test]
 fn render_40x12_is_not_too_small() {
-    let screen = text(&render(&app(true), 40, 12));
+    let buf = render(&app(true), 40, 12);
+    let screen = text(&buf);
     assert!(!screen.contains("Terminal too small"), "{screen}");
     assert!(screen.starts_with(" Playback │"), "{screen}");
+    insta::assert_snapshot!(framed(&buf));
 }
 
 #[test]
@@ -80,10 +82,12 @@ fn render_39x12_shows_too_small_message() {
 
 #[test]
 fn render_40x11_shows_too_small_message() {
-    let screen = text(&render(&app(true), 40, 11));
+    let buf = render(&app(true), 40, 11);
+    let screen = text(&buf);
     assert!(screen.contains("Terminal too small"), "{screen}");
     assert!(screen.contains("need 40x12, have 40x11"), "{screen}");
     assert!(!screen.contains("Playback"), "{screen}");
+    insta::assert_snapshot!(framed(&buf));
 }
 
 #[test]
