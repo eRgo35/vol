@@ -384,6 +384,7 @@ impl AudioBackend for InertBackend {
 
 #[cfg(any(test, feature = "mock"))]
 pub mod mock;
+pub mod pw;
 
 #[cfg(test)]
 mod tests {
