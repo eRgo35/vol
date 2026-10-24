@@ -1,4 +1,4 @@
-use crate::App;
+use crate::app::App;
 
 pub fn output_devices_tab(app: &App) -> String {
     let mut text = String::new();
