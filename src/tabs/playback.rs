@@ -1,7 +1,10 @@
-use crate::app::App;
+//! Playback tab (stub until its milestone).
 
-pub fn playback_tab(_app: &App) -> String {
-    let mut text = String::new();
-    text.push_str("Playback Tab\n");
-    text
+use ratatui::{buffer::Buffer, layout::Rect};
+
+use crate::{app::App, ui::SelectedTab};
+
+/// Renders the Playback tab body into `area`.
+pub fn render(app: &App, area: Rect, buf: &mut Buffer) {
+    super::render_stub(app, SelectedTab::PlaybackTab, area, buf);
 }

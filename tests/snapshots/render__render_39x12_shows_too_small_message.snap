@@ -1,0 +1,16 @@
+---
+source: tests/render.rs
+expression: framed(&buf)
+---
+"                                       "
+"                                       "
+"                                       "
+"                                       "
+"                                       "
+"          Terminal too small           "
+"        need 40x12, have 39x12         "
+"                                       "
+"                                       "
+"                                       "
+"                                       "
+"                                       "

@@ -1,7 +1,10 @@
-use crate::app::App;
+//! Recording tab (stub until its milestone).
 
-pub fn recording_tab(_app: &App) -> String {
-    let mut text = String::new();
-    text.push_str("Recording Tab\n");
-    text
+use ratatui::{buffer::Buffer, layout::Rect};
+
+use crate::{app::App, ui::SelectedTab};
+
+/// Renders the Recording tab body into `area`.
+pub fn render(app: &App, area: Rect, buf: &mut Buffer) {
+    super::render_stub(app, SelectedTab::RecordingTab, area, buf);
 }

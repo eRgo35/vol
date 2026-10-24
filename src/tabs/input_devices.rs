@@ -1,7 +1,10 @@
-use crate::app::App;
+//! Input Devices tab (stub until its milestone).
 
-pub fn input_devices_tab(_app: &App) -> String {
-    let mut text = String::new();
-    text.push_str("Input Devices Tab\n");
-    text
+use ratatui::{buffer::Buffer, layout::Rect};
+
+use crate::{app::App, ui::SelectedTab};
+
+/// Renders the Input Devices tab body into `area`.
+pub fn render(app: &App, area: Rect, buf: &mut Buffer) {
+    super::render_stub(app, SelectedTab::InputDevicesTab, area, buf);
 }

@@ -1,7 +1,10 @@
-use crate::app::App;
+//! Configuration tab (stub until its milestone).
 
-pub fn configuration_tab(_app: &App) -> String {
-    let mut text = String::new();
-    text.push_str("Configuration Tab\n");
-    text
+use ratatui::{buffer::Buffer, layout::Rect};
+
+use crate::{app::App, ui::SelectedTab};
+
+/// Renders the Configuration tab body into `area`.
+pub fn render(app: &App, area: Rect, buf: &mut Buffer) {
+    super::render_stub(app, SelectedTab::ConfigurationTab, area, buf);
 }
