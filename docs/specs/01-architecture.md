@@ -72,7 +72,7 @@ src/
 | ID | Level | Requirement | Status |
 |---|---|---|---|
 | VOL-ARCH-001 | MUST | Crate layout follows §2. `model/` and `backend/coalesce.rs` MUST NOT import `pipewire`, `libspa`, `ratatui`, `crossterm` or `tokio` (pure, unit-testable). Only `backend/pw/**` imports `pipewire`/`libspa`. | Missing |
-| VOL-ARCH-002 | MUST | `src/legacy.rs` is deleted when the first real tab renders live data. | Missing |
+| VOL-ARCH-002 | MUST | `src/legacy.rs` is deleted when the first real tab renders live data. | Implemented (deleted in M0-T04) |
 | VOL-ARCH-003 | MUST | Tab functions render into `Buffer` (widgets), not `String`. The `fn xxx_tab(&App) -> String` signature is removed. | Stub |
 | VOL-ARCH-004 | MUST | `SelectedTab` keeps its current five variants and display strings (stable public names). | Implemented |
 | VOL-ARCH-005 | SHOULD | `main.rs` parses `--help/-h`, `--version/-V`, `--mouse`, `--no-color` by hand (no new dependency). Unknown flag → print usage to stderr, exit 2 **before** entering raw mode. | Missing |
