@@ -27,15 +27,26 @@ pub enum DecodeError {
     Missing(&'static str),
     /// A property has an unexpected pod type.
     WrongType(&'static str),
+    /// A volume is negative, infinite or NaN.
+    OutOfRange(&'static str),
 }
 
 /// Decodes a node `Props` param: `volume`, `channelVolumes`, `mute`, `channelMap`.
 pub fn decode_props(pod: &Pod) -> Result<NodeAudio, DecodeError> {
     let obj = object(pod, SpaTypes::ObjectParamProps)?;
+    let volume = field(&obj, sys::SPA_PROP_volume, "volume", float)?.unwrap_or(1.0);
+    let channel_volumes =
+        field(&obj, sys::SPA_PROP_channelVolumes, "channelVolumes", floats)?.unwrap_or_default();
+    // Non-finite values would break the reducer's idempotence (NaN != NaN).
+    if !valid_volume(volume) {
+        return Err(DecodeError::OutOfRange("volume"));
+    }
+    if !channel_volumes.iter().all(|&v| valid_volume(v)) {
+        return Err(DecodeError::OutOfRange("channelVolumes"));
+    }
     Ok(NodeAudio {
-        volume: field(&obj, sys::SPA_PROP_volume, "volume", float)?.unwrap_or(1.0),
-        channel_volumes: field(&obj, sys::SPA_PROP_channelVolumes, "channelVolumes", floats)?
-            .unwrap_or_default(),
+        volume,
+        channel_volumes,
         mute: field(&obj, sys::SPA_PROP_mute, "mute", boolean)?.unwrap_or(false),
         channel_map: field(&obj, sys::SPA_PROP_channelMap, "channelMap", ids)?
             .unwrap_or_default()
@@ -43,6 +54,10 @@ pub fn decode_props(pod: &Pod) -> Result<NodeAudio, DecodeError> {
             .map(Channel)
             .collect(),
     })
+}
+
+fn valid_volume(v: f32) -> bool {
+    v.is_finite() && v >= 0.0
 }
 
 /// Decodes one device `EnumProfile` param object; `index` and `name` are required.
@@ -351,6 +366,25 @@ mod tests {
         assert_eq!(audio.channel_volumes, vec![0.5]);
         assert!(audio.mute);
         assert!(audio.channel_map.is_empty());
+    }
+
+    #[test]
+    fn props_non_finite_volume_is_error() {
+        for bad in [f32::NAN, f32::INFINITY, -1.0] {
+            let volume = props(vec![prop(sys::SPA_PROP_volume, Value::Float(bad))]);
+            assert_eq!(
+                decode_props(pod(&volume)),
+                Err(DecodeError::OutOfRange("volume"))
+            );
+            let channels = props(vec![prop(
+                sys::SPA_PROP_channelVolumes,
+                floats(&[0.5, bad]),
+            )]);
+            assert_eq!(
+                decode_props(pod(&channels)),
+                Err(DecodeError::OutOfRange("channelVolumes"))
+            );
+        }
     }
 
     #[test]
