@@ -1,0 +1,84 @@
+name: Release
+
+# Verification (fmt, clippy, test, doc, deny, MSRV) runs locally via `just check`;
+# this workflow only builds and publishes tagged releases.
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+env:
+  CARGO_TERM_COLOR: always
+  BIN_NAME: vol
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: build x86_64-linux
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+      - name: Verify tag matches Cargo.toml version
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          pkg_version="$(cargo metadata --no-deps --format-version 1 | jq -r '.packages[] | select(.name == "vol") | .version')"
+          if [ "v${pkg_version}" != "${TAG}" ]; then
+            echo "::error::tag ${TAG} does not match Cargo.toml version ${pkg_version}"
+            exit 1
+          fi
+      - name: Install PipeWire build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libpipewire-0.3-dev libspa-0.2-dev clang libclang-dev pkg-config
+      - name: Build release binary
+        run: cargo build --release --locked
+      - name: Package tarball and checksum
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          name="${BIN_NAME}-${TAG}-x86_64-linux"
+          mkdir -p "dist/${name}"
+          cp "target/release/${BIN_NAME}" LICENSE README.md "dist/${name}/"
+          strip "dist/${name}/${BIN_NAME}"
+          (cd dist && tar -czf "${name}.tar.gz" "${name}")
+          rm -rf "dist/${name}"
+      - name: Upload packaged artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: vol-x86_64-linux
+          path: dist/*.tar.gz
+          if-no-files-found: error
+
+  release:
+    name: create GitHub release
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download packaged artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: vol-x86_64-linux
+          path: dist
+      - name: Generate SHA-256 sums
+        working-directory: dist
+        run: sha256sum *.tar.gz > SHA256SUMS
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
+          fail_on_unmatched_files: true
+          files: |
+            dist/*.tar.gz
+            dist/SHA256SUMS

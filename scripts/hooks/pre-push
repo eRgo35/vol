@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+# Runs the full local gate (`just check`) before every push.
+# Bypass for a single push with: git push --no-verify
+set -euo pipefail
+
+repo_root="$(git rev-parse --show-toplevel)"
+cd "$repo_root"
+
+if ! command -v just >/dev/null 2>&1; then
+    echo "pre-push: 'just' is not installed; install it or push with --no-verify" >&2
+    exit 1
+fi
+
+exec just check
