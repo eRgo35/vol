@@ -35,13 +35,13 @@ pub fn fixtures::disconnected(NoDaemon) -> MockScript;
 
 | ID | Level | Requirement | Status |
 |---|---|---|---|
-| VOL-TEST-001 | MUST | Reducer: for each `StoreEvent` kind a table test covering add, update, remove, unknown-id, duplicate; plus VOL-ARCH-022 cascade (node removal drops its ports/links/target). | Missing |
-| VOL-TEST-002 | MUST | Reducer: `Disconnected` clears maps; `Connected` sets `conn`; `revision` increments iff `apply` returned `true`. | Missing |
-| VOL-TEST-003 | MUST | Coalescing (L2): for any random event vector, `coalesce(events)` applied to a `Store` yields the **same final `Store`** as applying `events` one by one (equivalence property), except `revision`. | Missing |
+| VOL-TEST-001 | MUST | Reducer: for each `StoreEvent` kind a table test covering add, update, remove, unknown-id, duplicate; plus VOL-ARCH-022 cascade (node removal drops its ports/links/target). | Implemented |
+| VOL-TEST-002 | MUST | Reducer: `Disconnected` clears maps; `Connected` sets `conn`; `revision` increments iff `apply` returned `true`. | Implemented |
+| VOL-TEST-003 | MUST | Coalescing (L2): for any random event vector the backend can produce (an `*Added` never repeats an id that is still live), `coalesce(events)` applied to a `Store` yields the **same final `Store`** as applying `events` one by one (equivalence property), except `revision`. | Implemented |
 | VOL-TEST-004 | MUST | Volume math (L2): VOL-VM-005 (round trip for 0..=150), VOL-VM-006 (dB anchors, monotonic), step clamp (`p+Δ` within 0..=150), locked scaling keeps channel ratios within `1e-5` and lands the max channel exactly on the target percent, unlocked touches one channel only. | Missing |
 | VOL-TEST-005 | MUST | `Level`/gain write path: percent 87 on a node with `volume=1.0` writes `channelVolumes = [0.658503; 2]` (= 0.87³ as `f32`, tolerance 1e-6); on `volume=0.5` writes `0.658503/0.5`; on `volume=0` writes `master=Some(1.0)`. | Missing |
 | VOL-TEST-006 | MUST | View derivation: title fallback chains (02 §3.2, 04 §3, 06 §2), `is_virtual_stream`, `is_hardware`, filter results, sort order, port resolution incl. unplugged/none/one-candidate, stream→sink target label incl. monitor ports, vol's own meter streams hidden. Fixtures derive from observed props. | Missing |
-| VOL-TEST-007 | MUST | Default detection from metadata JSON: `{"name":"x"}` ok; malformed/other-type values → `None`, no panic. | Missing |
+| VOL-TEST-007 | MUST | Default detection from metadata JSON: `{"name":"x"}` ok; malformed/other-type values → `None`, no panic. | Implemented |
 | VOL-TEST-020 | MUST | Keymap table test: every row of 07 §2–§4 (mode × key → `Action`), incl. `Ctrl-m ≠ m`, `Release` ignored, `SHIFT`-insensitive capitals, popup-mode `q` = close. | Missing |
 | VOL-TEST-030 | MUST | Render snapshots (L3), text only, at **80×24**, **60×10**, **40×16**, **40×12**, and too-small **39×12**/**40×11**: Playback (locked, unlocked, muted, > 100 %, `--` volume), Recording (monitor source label), Output (default, unplugged port, popup), Input, Configuration (popup, unavailable profile), help overlay, disconnected, empty states. The mockups in docs/specs MUST match the snapshots character for character for the same fixtures (or the docs be regenerated). | Missing |
 | VOL-TEST-031 | MUST | Style assertions: selected row has `▌` with cyan fg; > 100 % cells use `bar_over` red; muted row has DIM; mono mode has no non-reset fg/bg (VOL-VIS-007). | Missing |

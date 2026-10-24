@@ -14,7 +14,7 @@ Last updated: 2026-10-21. Spec: [`SPEC.md`](SPEC.md) and `docs/specs/`. Executio
 | Milestone | Title | Size | Depends on | IDs | Plan | Status |
 |---|---|---|---|---|---|---|
 | M0 | Foundation and refactor | M | — | 47 | [`docs/plans/00-foundation.md`](docs/plans/00-foundation.md) | Done |
-| M1 | PipeWire backend and registry mirror | L | M0 | 30 | [`docs/plans/01-backend-store.md`](docs/plans/01-backend-store.md) | Not started |
+| M1 | PipeWire backend and registry mirror | L | M0 | 30 | [`docs/plans/01-backend-store.md`](docs/plans/01-backend-store.md) | Done |
 | M2 | Playback tab (read-only) | L | M1 | 25 | [`docs/plans/02-playback-readonly.md`](docs/plans/02-playback-readonly.md) | Not started |
 | M3 | Volume and mute writes | M | M2 | 20 | [`docs/plans/03-volume-mute.md`](docs/plans/03-volume-mute.md) | Not started |
 | M4 | Recording tab and stream move | M | M3 | 12 | [`docs/plans/04-recording-move.md`](docs/plans/04-recording-move.md) | Not started |
@@ -48,7 +48,7 @@ Size: S ≈ 2–3 working days, M ≈ 4–6, L ≈ 8–12 (one developer, tasks 
 
 ### M1 — PipeWire backend and registry mirror
 
-**Status:** Not started · **Size:** L · **Depends on:** M0 · **Plan:** [`docs/plans/01-backend-store.md`](docs/plans/01-backend-store.md)
+**Status:** Done (2026-10-24) · **Size:** L · **Depends on:** M0 · **Plan:** [`docs/plans/01-backend-store.md`](docs/plans/01-backend-store.md)
 
 **Goal.** A `vol-pw` thread that mirrors nodes, devices, ports, links and the `default` metadata into a pure `Store` via a reducer, with coalescing, reconnect/backoff, shutdown and file logging. Headless: verified by unit tests and opt-in live tests, no new UI.
 

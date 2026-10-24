@@ -21,6 +21,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 - "Terminal too small" screen below 40×12.
 - `SIGTERM`, `SIGHUP` and `SIGINT` quit cleanly and restore the terminal.
 - Nix dev shell with the PipeWire and libclang build dependencies.
+- PipeWire backend: vol connects at startup and mirrors audio nodes, devices, ports, links and the default sink/source (not shown on screen yet); it keeps running without a daemon and reconnects with backoff (0.5 s up to 10 s).
+- Optional file log: `VOL_LOG=error|warn|info|debug` writes `$XDG_STATE_HOME/vol/vol.log`.
+- `just test-live`: opt-in tests against a private, throwaway PipeWire daemon.
 
 ### Changed
 

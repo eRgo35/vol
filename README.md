@@ -71,7 +71,7 @@ Keys are from [docs/specs/07-input-and-keybindings.md](docs/specs/07-input-and-k
 
 In a popup: `j`/`k` or arrows move, `g`/`G` or `Home`/`End` jump, `1`–`9` select, `Enter`, `l`, `→` or `Space` apply, and `Esc`, `q`, `h` or `←` close.
 
-Command-line flags: `-h`/`--help` and `-V`/`--version` are implemented; an unknown argument prints the usage to stderr and exits with status 2. `--no-color` and the `NO_COLOR` environment variable (any non-empty value) switch to a monochrome theme. `--mouse` (opt-in mouse support) and `--no-meters` are accepted but have no effect yet (planned). Planned environment: `VOL_NO_METERS`, `VOL_LOG`, `PIPEWIRE_REMOTE`.
+Command-line flags: `-h`/`--help` and `-V`/`--version` are implemented; an unknown argument prints the usage to stderr and exits with status 2. `--no-color` and the `NO_COLOR` environment variable (any non-empty value) switch to a monochrome theme. `--mouse` (opt-in mouse support) and `--no-meters` are accepted but have no effect yet (planned). `VOL_LOG=error|warn|info|debug` writes a log to `$XDG_STATE_HOME/vol/vol.log` (default `~/.local/state/vol/vol.log`); `PIPEWIRE_REMOTE` selects the PipeWire socket. Planned environment: `VOL_NO_METERS`.
 
 ## Documentation
 

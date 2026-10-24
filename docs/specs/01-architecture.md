@@ -28,7 +28,7 @@ src/
   cli.rs             Cli, parse(), USAGE (pure)
   log.rs             optional file logger (VOL_LOG)
   ui_state.rs        UiState, Overlay, Mode, StatusMsg, per-tab ListState, row UI, pending optimistic state
-  app.rs             App { running, store (M1), ui: UiState, backend: Box<dyn AudioBackend> (command side), dirty, options };
+  app.rs             App { running, store: Store, ui: UiState, backend: Box<dyn AudioBackend> (command side), dirty, options };
                      update(Action) (returns Effects once they exist); run(&mut terminal, &mut EventHandler)
   action.rs          Action enum (user intent), Effect enum (side effects)
   keymap.rs          fn map_key(&UiState, KeyEvent) -> Option<Action>   (pure)
@@ -53,7 +53,9 @@ src/
     coalesce.rs      Batch (pure coalescing buffer)
     mock.rs          MockBackend + fixtures (scriptable; compiled under cfg(test) or Cargo feature "mock", which `--all-features` enables)
     pw/
-      mod.rs         spawn() -> BackendHandle ; thread entry; reconnect loop
+      mod.rs         spawn_pipewire() / spawn_pipewire_at(socket) -> io::Result<BackendHandle>; thread entry, Outbox (batch + 16 ms timer), loop driver
+      conn.rs        connect, core listeners, initial-sync state machine, errno -> DisconnectReason
+      reconnect.rs   backoff schedule, restart budget, replies while disconnected (pure)
       registry.rs    registry listener, proxy bookkeeping
       params.rs      Pod <-> model conversion (Props, Route, EnumRoute, Profile, EnumProfile, ProcessLatency)
       metadata.rs    "default" metadata listener + setters
@@ -84,7 +86,7 @@ src/
 ```
                        ┌──────────────── tokio runtime (main thread) ────────────────┐
  terminal ──crossterm──►  EventTask ──Event::Crossterm──┐                              │
-                       │  tick 30 Hz ─Event::Tick───────┼──► mpsc ──► App::run loop ──►│ draw()
+                       │  tick 30 Hz ─Event::Tick(t)────┼──► mpsc ──► App::run loop ──►│ draw()
                        │  BackendBridge ─Event::Backend─┘            │ (Action → update)
                        └──────────────────────────────────────────────┼──────────────┘
                                          ▲ BackendEvent               │ Command
@@ -97,13 +99,13 @@ src/
 
 | ID | Level | Requirement | Status |
 |---|---|---|---|
-| VOL-ARCH-010 | MUST | Exactly one OS thread named `vol-pw` owns **every** PipeWire object (`MainLoop`, `Context`, `Core`, `Registry`, proxies, listeners, meter `Stream`s). They are `!Send`; none crosses threads. | Missing |
-| VOL-ARCH-011 | MUST | App → backend: `pipewire::channel::channel::<Command>()`; the `Receiver` is `attach`ed to the loop of `vol-pw`; the `Sender` (`Clone + Send`) lives in `BackendHandle`. Sending never blocks. | Missing |
-| VOL-ARCH-012 | MUST | Backend → app: `tokio::sync::mpsc::UnboundedSender<BackendEvent>` (non-async `send` is safe from `vol-pw`). A bridge task forwards each item as `Event::Backend(BackendEvent)` into the existing `EventHandler` channel. | Implemented (bridge in `event.rs`; mock/inert senders until M1) |
-| VOL-ARCH-013 | MUST | Shutdown: app sends `Command::Shutdown`; `vol-pw` destroys meter streams, drops listeners/proxies/core/context and returns from `MainLoop::run`; app `join`s with a 1 s budget (if exceeded: log, continue exit). No PipeWire object may outlive the process's terminal restore. | Missing |
-| VOL-ARCH-014 | MUST | The tokio side never calls PipeWire FFI. The PipeWire side never touches ratatui/crossterm. | Missing |
-| VOL-ARCH-015 | SHOULD | `pipewire::init()` is called once, on `vol-pw`, before the loop is created. Loop types (`pipewire 0.10.1`, verified 2026-10-24 on PipeWire 1.6.9, M1-T01): `pipewire::main_loop::MainLoopRc::new(None)`, `pipewire::context::ContextRc::new(&main_loop, None)`, `ContextRc::connect_rc(None) -> pipewire::core::CoreRc`, `CoreRc::get_registry_rc() -> pipewire::registry::RegistryRc` (the `*Box` variants are the borrowed alternatives). `pipewire::init()` is idempotent (`OnceLock`-guarded). | Missing |
-| VOL-ARCH-016 | MUST | The backend needs these `pipewire 0.10.1` APIs, all verified to exist with safe wrappers (2026-10-24, PipeWire 1.6.9, M1-T01; signatures in the Spike results table of `docs/plans/01-backend-store.md`): `pipewire::channel::{channel, Sender, Receiver}` (`Receiver::attach(&Loop, Fn(T))`), `pipewire::registry::Registry::add_listener_local()` `global`/`global_remove`, `Registry::bind::<pipewire::{node::Node, device::Device, metadata::Metadata}>`, `Node`/`Device` `subscribe_params(&[ParamType])`, `enum_params(seq, Option<ParamType>, start, num)` (returns `()`; replies carry a daemon-generated seq, not the one passed), `set_param(ParamType, flags, &Pod)`, `param` listener `Fn(seq, ParamType, index, next, Option<&Pod>)`, `pipewire::metadata::Metadata::set_property(subject, key, Option<type>, Option<value>)` (value `None` removes) and its `property` listener, `Core::sync(seq) -> AsyncSeq` + `done` listener, core `error` listener `Fn(id, seq, res, message)`, `pipewire::stream::StreamRc` with `param_changed`/`process` listeners, loop timers `Loop::add_timer` + `TimerSource::update_timer`, pods via `pipewire::spa::pod::{Value, Object, Property, serialize::PodSerializer, deserialize::PodDeserializer}` (`libspa` is re-exported as `pipewire::spa`). Param object keys exist only as plain constants in `pipewire::spa::sys` (`SPA_PROP_*`, `SPA_PARAM_ROUTE_*`, …). No `sys` function fallback and no `unsafe` is needed. | Missing |
+| VOL-ARCH-010 | MUST | Exactly one OS thread named `vol-pw` owns **every** PipeWire object (`MainLoop`, `Context`, `Core`, `Registry`, proxies, listeners, meter `Stream`s). They are `!Send`; none crosses threads. | Implemented |
+| VOL-ARCH-011 | MUST | App → backend: `pipewire::channel::channel::<Command>()`; the `Receiver` is `attach`ed to the loop of `vol-pw`; the `Sender` (`Clone + Send`) lives in `BackendHandle`. Sending never blocks. | Implemented |
+| VOL-ARCH-012 | MUST | Backend → app: `tokio::sync::mpsc::UnboundedSender<BackendEvent>` (non-async `send` is safe from `vol-pw`). A bridge task forwards each item as `Event::Backend(BackendEvent)` into the existing `EventHandler` channel. | Implemented (end-to-end with `spawn_pipewire`, M1-T15) |
+| VOL-ARCH-013 | MUST | Shutdown: app sends `Command::Shutdown`; `vol-pw` destroys meter streams, drops listeners/proxies/core/context and leaves its loop (the thread drives `MainLoop::iterate` itself, M1-T13); app `join`s with a 1 s budget (if exceeded: log, continue exit). No PipeWire object may outlive the process's terminal restore. | Implemented (meter streams arrive in M7) |
+| VOL-ARCH-014 | MUST | The tokio side never calls PipeWire FFI. The PipeWire side never touches ratatui/crossterm. | Implemented |
+| VOL-ARCH-015 | SHOULD | `pipewire::init()` is called once, on `vol-pw`, before the loop is created. Loop types (`pipewire 0.10.1`, verified 2026-10-24 on PipeWire 1.6.9, M1-T01): `pipewire::main_loop::MainLoopRc::new(None)`, `pipewire::context::ContextRc::new(&main_loop, None)`, `ContextRc::connect_rc(None) -> pipewire::core::CoreRc`, `CoreRc::get_registry_rc() -> pipewire::registry::RegistryRc` (the `*Box` variants are the borrowed alternatives). `pipewire::init()` is idempotent (`OnceLock`-guarded). | Implemented |
+| VOL-ARCH-016 | MUST | The backend needs these `pipewire 0.10.1` APIs, all verified to exist with safe wrappers (2026-10-24, PipeWire 1.6.9, M1-T01; signatures in the Spike results table of `docs/plans/01-backend-store.md`): `pipewire::channel::{channel, Sender, Receiver}` (`Receiver::attach(&Loop, Fn(T))`), `pipewire::registry::Registry::add_listener_local()` `global`/`global_remove`, `Registry::bind::<pipewire::{node::Node, device::Device, metadata::Metadata}>`, `Node`/`Device` `subscribe_params(&[ParamType])`, `enum_params(seq, Option<ParamType>, start, num)` (returns `()`; replies carry a daemon-generated seq, not the one passed), `set_param(ParamType, flags, &Pod)`, `param` listener `Fn(seq, ParamType, index, next, Option<&Pod>)`, `pipewire::metadata::Metadata::set_property(subject, key, Option<type>, Option<value>)` (value `None` removes) and its `property` listener, `Core::sync(seq) -> AsyncSeq` + `done` listener, core `error` listener `Fn(id, seq, res, message)`, `pipewire::stream::StreamRc` with `param_changed`/`process` listeners, loop timers `Loop::add_timer` + `TimerSource::update_timer`, pods via `pipewire::spa::pod::{Value, Object, Property, serialize::PodSerializer, deserialize::PodDeserializer}` (`libspa` is re-exported as `pipewire::spa`). Param object keys exist only as plain constants in `pipewire::spa::sys` (`SPA_PROP_*`, `SPA_PARAM_ROUTE_*`, …). No `sys` function fallback and no `unsafe` is needed. | Implemented |
 
 ### 3.1 `AudioBackend` seam (for tests and mock)
 
@@ -274,23 +276,23 @@ Property sources (observed on PipeWire 1.6.9 + WirePlumber, `pw-dump`):
 
 | ID | Level | Requirement | Status |
 |---|---|---|---|
-| VOL-ARCH-020 | MUST | `Store` is the only holder of PipeWire-derived state; widgets receive `&Store` (or derived `view` rows), never raw backend data. | Missing |
-| VOL-ARCH-021 | MUST | `Store::apply(&mut self, StoreEvent) -> bool` returns `true` iff observable state changed; `revision` increments only then. It is total (never panics) and idempotent for repeated identical events. | Missing |
-| VOL-ARCH-022 | MUST | `NodeRemoved` also removes: the node's `Port`s, any `Link` whose `out_node` or `in_node` is that node, and `stream_targets[id]`. `DeviceRemoved` clears nothing else (nodes disappear via their own events). `PortRemoved`/`LinkRemoved` for unknown ids are no-ops. | Missing |
-| VOL-ARCH-023 | MUST | Events for ids not in the store (`NodeAudio` before `NodeAdded`, etc.) are dropped, not buffered. The backend guarantees `*Added` precedes param events for that id. | Missing |
+| VOL-ARCH-020 | MUST | `Store` is the only holder of PipeWire-derived state; widgets receive `&Store` (or derived `view` rows), never raw backend data. | Implemented |
+| VOL-ARCH-021 | MUST | `Store::apply(&mut self, StoreEvent) -> bool` returns `true` iff observable state changed; `revision` increments only then. It is total (never panics) and idempotent for repeated identical events. | Implemented |
+| VOL-ARCH-022 | MUST | `NodeRemoved` also removes: the node's `Port`s, any `Link` whose `out_node` or `in_node` is that node, and `stream_targets[id]`. `DeviceRemoved` clears nothing else (nodes disappear via their own events). `PortRemoved`/`LinkRemoved` for unknown ids are no-ops. | Implemented |
+| VOL-ARCH-023 | MUST | Events for ids not in the store (`NodeAudio` before `NodeAdded`, etc.) are dropped, not buffered. The backend guarantees `*Added` precedes param events for that id. | Implemented |
 | VOL-ARCH-024 | MUST | A node with `audio == None` is stored but derived rows show volume as `--` and reject volume/mute actions with status `"Volume not available yet"`. | Missing |
-| VOL-ARCH-025 | MUST | `Defaults.sink/source` are parsed from `default.audio.*` values as JSON `{"name": String}`; parse failure → `None` and a debug log (never a crash). Values of other metadata keys are ignored. | Missing |
-| VOL-ARCH-026 | MUST | The reducer treats `Metadata{subject, key: "target.object" or "target.node", value:None}` as removal. | Missing |
-| VOL-ARCH-027 | MUST | `Disconnected` → `Store::clear()` (empties all maps, keeps `conn`). `Connected` → `conn = Connected`. Row selection survives via `RowKey` (VOL-ROW-004, 02 §2.3), not via indices. | Missing |
-| VOL-ARCH-028 | SHOULD | Node/device property strings are stored verbatim; derived labels (title chains in 02–06) are computed in `model::view`, not in widgets. | Missing |
+| VOL-ARCH-025 | MUST | `Defaults.sink/source` are parsed from `default.audio.*` values as JSON `{"name": String}`; parse failure → `None` and a debug log (never a crash). Values of other metadata keys are ignored. | Implemented |
+| VOL-ARCH-026 | MUST | The reducer treats `Metadata{subject, key: "target.object" or "target.node", value:None}` as removal. | Implemented |
+| VOL-ARCH-027 | MUST | `Disconnected` → `Store::clear()` (empties all maps, keeps `conn`). `Connected` → `conn = Connected`. Row selection survives via `RowKey` (VOL-ROW-004, 02 §2.3), not via indices. | Implemented |
+| VOL-ARCH-028 | SHOULD | Node/device property strings are stored verbatim; derived labels (title chains in 02–06) are computed in `model::view`, not in widgets. | Implemented |
 
 ## 6. Update and coalescing rules
 
 | ID | Level | Requirement | Status |
 |---|---|---|---|
-| VOL-ARCH-030 | MUST | `vol-pw` appends `StoreEvent`s to a `Batch` and flushes it as one `BackendEvent::Batch` (a) when a 16 ms one-shot timer on the PW loop fires, or (b) immediately when the batch holds ≥ 256 events. The timer is armed by the first event appended to an empty batch. | Missing |
-| VOL-ARCH-031 | MUST | Coalescing inside `Batch` (pure, in `backend/coalesce.rs`): (1) consecutive `NodeAudio` for the same id keep the last; (2) `NodeInfo` same id keep last; (3) `Metadata` same `(subject,key)` keep last; (4) `*Added` followed by `*Removed` for the same id in one batch cancel both; (5) `DeviceRoutes/Profiles/Profile/Active` same id keep last; (6) relative order of the surviving events is preserved. | Missing |
-| VOL-ARCH-032 | MUST | Initial snapshot: after binding registry, `vol-pw` binds each `Node`/`Device`/`Metadata("default")`/`Port`/`Link`, calls `subscribe_params` + `enum_params` as per kind (Node: `Props`, `ProcessLatency`; Device: `EnumProfile`, `Profile`, `EnumRoute`, `Route`), then `core.sync(0)`; `Connected` is emitted on the matching `done` **after** flushing the batch. Param replies that arrive later are normal batch traffic. | Missing |
+| VOL-ARCH-030 | MUST | `vol-pw` appends `StoreEvent`s to a `Batch` and flushes it as one `BackendEvent::Batch` (a) when a 16 ms one-shot timer on the PW loop fires, or (b) immediately when the batch holds ≥ 256 events. The timer is armed by the first event appended to an empty batch. | Implemented |
+| VOL-ARCH-031 | MUST | Coalescing inside `Batch` (pure, in `backend/coalesce.rs`): (1) consecutive `NodeAudio` for the same id keep the last; (2) `NodeInfo` same id keep last; (3) `Metadata` same `(subject,key)` keep last; (4) `*Added` followed by `*Removed` for the same id in one batch cancel both; (5) `DeviceRoutes/Profiles/Profile/Active` same id keep last; (6) relative order of the surviving events is preserved. | Implemented |
+| VOL-ARCH-032 | MUST | Initial snapshot: after binding registry, `vol-pw` binds each `Node`/`Device`/`Metadata("default")` (`Port`/`Link` are read from their global properties, which carry every field the model needs; no bind), calls `subscribe_params` + `enum_params` as per kind (Node: `Props`, `ProcessLatency`; Device: `EnumProfile`, `Profile`, `EnumRoute`, `Route`), then `core.sync(0)`; the first `done` ends the global burst, a second sync covers the bind and param replies, and `Connected` is emitted on that second `done` **after** flushing the batch (one sync emitted `Connected` before any params arrived, M1-T11). Multi-object replies (`EnumProfile`, `EnumRoute`) are grouped by the seq carried in the `param` events (`enum_params` does not echo the caller's seq). Param replies that arrive later are normal batch traffic. | Implemented |
 | VOL-ARCH-033 | MUST | The app loop: handle **all** pending events, then draw at most once per `Tick` and only if `dirty` (store revision changed, UI state changed, meter changed, resize). Max draw rate 30 Hz (existing `TICK_FPS`). Idle app (no input, no changes) MUST NOT redraw. | Implemented |
 | VOL-ARCH-034 | MUST | `Meters` messages never go through `Batch`. The app stores only the latest `peak` per `Serial` plus the display value with decay (08 §5). | Missing |
 | VOL-ARCH-035 | MUST | Volume writes from key-repeat are coalesced in the **app**: at most one `SetVolumes` per node per 16 ms; the latest value wins. | Missing |
@@ -301,13 +303,13 @@ Property sources (observed on PipeWire 1.6.9 + WirePlumber, `pw-dump`):
 
 | ID | Level | Requirement | Status |
 |---|---|---|---|
-| VOL-ARCH-040 | MUST | `vol-pw` calls `Context::connect(None)` (honours `PIPEWIRE_REMOTE`, default `pipewire-0` in `$XDG_RUNTIME_DIR`). Failure → `Disconnected{reason: NoDaemon or PermissionDenied, retry_in: Some(d), attempt}`; the UI starts and shows the disconnected state (no abort). | Missing |
-| VOL-ARCH-041 | MUST | Backoff: `d = min(10 s, 0.5 s × 2^(attempt-1))` → 0.5, 1, 2, 4, 8, 10, 10, … s. `attempt` resets to 0 on `Connected`. Retries never stop while the app runs. | Missing |
-| VOL-ARCH-042 | MUST | Loss detection: core `error` event with `id == 0` (VERIFY: `pipewire::core::Listener::error(id, seq, res, message)`; res `-EPIPE`), or `done`-less socket hangup. Handler sets a flag and quits the loop; teardown (drop proxies, core, context) happens **outside** the callback. | Missing |
-| VOL-ARCH-043 | MUST | Between attempts the thread keeps servicing the command channel: every command except `Shutdown`/`SetMeters` replies `CommandFailed{error: NotConnected}` within 100 ms; `Shutdown` exits within 100 ms (retry wait is a loop timer, not `thread::sleep`). | Missing |
+| VOL-ARCH-040 | MUST | `vol-pw` calls `Context::connect(None)` (honours `PIPEWIRE_REMOTE`, then `pipewire-0` in `$PIPEWIRE_RUNTIME_DIR`, then in `$XDG_RUNTIME_DIR`; with none set the connect fails, no fallback). Failure → `Disconnected{reason: NoDaemon or PermissionDenied, retry_in: Some(d), attempt}`; the UI starts and shows the disconnected state (no abort). | Implemented |
+| VOL-ARCH-041 | MUST | Backoff: `d = min(10 s, 0.5 s × 2^(attempt-1))` → 0.5, 1, 2, 4, 8, 10, 10, … s. `attempt` resets to 0 on `Connected`. Retries never stop while the app runs. | Implemented |
+| VOL-ARCH-042 | MUST | Loss detection: core `error` event with `id == 0` (observed 2026-10-24, PipeWire 1.6.9: killing the daemon gives `error(id 0, seq, res -32 (EPIPE), "connection error")` within ~6 ms; a missing socket fails `connect` with errno 112 EHOSTDOWN → `NoDaemon`; errors on proxies with id ≠ 0 are logged, not fatal). Handler sets a flag; the thread's loop sees it after the iteration; teardown (drop proxies, core, context) happens **outside** the callback. | Implemented |
+| VOL-ARCH-043 | MUST | Between attempts the thread keeps servicing the command channel: every command except `Shutdown`/`SetMeters` replies `CommandFailed{error: NotConnected}` within 100 ms; `Shutdown` exits within 100 ms (retry wait is a loop timer, not `thread::sleep`). | Implemented |
 | VOL-ARCH-044 | MUST | On `Disconnected` the app: clears `Store`, closes popups, keeps tab/filter selection, and renders the banner of 08 §7 on the active tab. | Missing |
 | VOL-ARCH-045 | MUST | Meter streams are destroyed on disconnect and recreated from the app's next `SetMeters` after `Connected`. The app re-sends `SetMeters` on every `Connected`. | Missing |
-| VOL-ARCH-046 | SHOULD | WirePlumber restart (daemon alive; metadata object `default` disappears and reappears): the registry `global_remove` for the metadata id emits `MetadataCleared`; on reappearance the backend re-binds. Defaults then re-populate. | Missing |
+| VOL-ARCH-046 | SHOULD | WirePlumber restart (daemon alive; metadata object `default` disappears and reappears): the registry `global_remove` for the metadata id emits `MetadataCleared`; on reappearance the backend re-binds. Defaults then re-populate. | Implemented |
 | VOL-ARCH-047 | MUST | No WirePlumber (daemon up, no `default` metadata ever appears): app works; "default" markers absent; `d` shows status `"No default-device metadata (is WirePlumber running?)"`; moves/ports still work for nodes/devices. | Missing |
 
 ## 8. Error handling
@@ -316,9 +318,9 @@ Property sources (observed on PipeWire 1.6.9 + WirePlumber, `pw-dump`):
 |---|---|---|---|
 | VOL-ARCH-050 | MUST | `main` returns `color_eyre::Result<ExitCode>` (exit code 2 for CLI errors); backend and reducer code use typed errors (`BackendError`), not `eyre`, so tests can match on them. | Implemented |
 | VOL-ARCH-051 | MUST | A failed command never panics and never blocks the UI; the app shows `CommandFailed` as a status message (07 §6) for 4 s and logs it. | Missing |
-| VOL-ARCH-052 | MUST | Any panic in `vol-pw` is caught (`catch_unwind` at thread entry), reported as `Disconnected{ConnectionLost}` and the reconnect loop restarts the backend (max 5 restarts in 60 s, then stay disconnected with status "backend crashed"). | Missing |
-| VOL-ARCH-053 | MUST | Malformed pods (unexpected types/lengths) are skipped for that param, with `log::debug`-level text to the log file (§9); the node/device stays visible. | Missing |
-| VOL-ARCH-054 | SHOULD | Logging goes to a file only (never stdout/stderr while in raw mode): `$XDG_STATE_HOME/vol/vol.log` (fallback `~/.local/state/vol/vol.log`), enabled only if `VOL_LOG` is set (one of `error`, `warn`, `info`, `debug`). No new mandatory dependency (a ~40-line writer, or `tracing` + `tracing-appender` if the maintainer prefers; decide in Open questions). | Missing |
+| VOL-ARCH-052 | MUST | Any panic in `vol-pw` outside PipeWire callbacks is caught (`catch_unwind` around the session driver), reported as `Disconnected{ConnectionLost}` and the reconnect loop restarts the backend (max 5 restarts in 60 s, then stay disconnected; every later command gets `CommandFailed{Pipewire(0, "backend crashed")}`). A panic inside a PipeWire callback cannot be caught: callbacks are `extern "C"`, so Rust aborts the process (callbacks must therefore never panic; VOL-QA-002). | Implemented (panics inside PipeWire callbacks abort; see text) |
+| VOL-ARCH-053 | MUST | Malformed pods (unexpected types/lengths) are skipped for that param, with `log::debug`-level text to the log file (§9); the node/device stays visible. | Implemented |
+| VOL-ARCH-054 | SHOULD | Logging goes to a file only (never stdout/stderr while in raw mode): `$XDG_STATE_HOME/vol/vol.log` (fallback `~/.local/state/vol/vol.log`), enabled only if `VOL_LOG` is set (one of `error`, `warn`, `info`, `debug`). No new mandatory dependency (a ~40-line writer, or `tracing` + `tracing-appender` if the maintainer prefers; decide in Open questions). | Implemented |
 
 ## 9. Terminal lifecycle
 

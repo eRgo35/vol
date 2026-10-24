@@ -1,6 +1,6 @@
 # M1 — PipeWire backend and registry mirror
 
-**Status:** Not started · **Size:** L · **Depends on:** M0 · **Branch:** `m1/backend-store` · Index: [`PLAN.md`](../../PLAN.md) · Roadmap: [`ROADMAP.md`](../../ROADMAP.md#m1--pipewire-backend-and-registry-mirror)
+**Status:** Done (2026-10-24) · **Size:** L · **Depends on:** M0 · **Branch:** `m1/backend-store` · Index: [`PLAN.md`](../../PLAN.md) · Roadmap: [`ROADMAP.md`](../../ROADMAP.md#m1--pipewire-backend-and-registry-mirror)
 
 **Goal.** A `vol-pw` thread that mirrors nodes, devices, ports, links and the `default` metadata into a pure `Store` via a reducer, with coalescing, reconnect/backoff, shutdown and file logging. Headless: verified by unit tests and opt-in live tests, no new UI.
 
@@ -175,11 +175,11 @@ Touched here but owned by another milestone (partial work or verification only):
 
 ## Definition of done (M1)
 
-- [ ] `just check` green; `just test-live` green on the author's machine.
-- [ ] All 30 M1 IDs `Implemented`.
-- [ ] `grep -rn "pipewire::\|libspa::" src | grep -v "src/backend/pw/"` is empty (layering test).
-- [ ] VF-01, VF-02 closed; Q3 decided; Spike results table committed.
-- [ ] Quitting during backoff or while connected exits within 1 s; no `vol-pw` thread remains.
+- [x] `just check` green; `just test-live` green on the author's machine.
+- [x] All 30 M1 IDs `Implemented`.
+- [x] `grep -rn "pipewire::\|libspa::" src | grep -v "src/backend/pw/"` is empty (layering test).
+- [x] VF-01, VF-02 closed; Q3 decided; Spike results table committed.
+- [x] Quitting during backoff or while connected exits within 1 s; no `vol-pw` thread remains.
 
 ## Risks
 

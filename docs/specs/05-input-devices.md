@@ -73,4 +73,4 @@ Capturing a microphone for a level meter makes desktop environments show a "micr
 | VOL-IN-006 | MUST | Meter per §4; no meter stream is created for source rows not on screen. Leaving the tab destroys them within 200 ms (VOL-MTR-005). | Missing |
 | VOL-IN-007 | MUST | Disappearing source mid-interaction: as VOL-OUT-009/010 with "input". | Missing |
 | VOL-IN-008 | MAY | "Monitor of `<sink>`" entries in this tab (pavucontrol's All-Input-Devices variants include monitors): **deferred**; would be synthetic rows (no node) with `SinkMonitor` meter and no volume control. | Missing |
-| VOL-IN-009 | MAY | `Audio/Duplex` nodes: not stored (VOL-ARCH §5); revisit if a real device exposes them (Open question Q7). | Missing |
+| VOL-IN-009 | MAY | `Audio/Duplex` nodes: not stored (VOL-ARCH §5); revisit if a real device exposes them (Open question Q7). | Implemented |

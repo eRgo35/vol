@@ -8,16 +8,16 @@ This document is the index, the conventions, the glossary and the open questions
 
 | Doc | Area | ID prefixes | Implemented | Stub | Missing | n/a | Total |
 |---|---|---|---|---|---|---|---|
-| [`01-architecture.md`](docs/specs/01-architecture.md) | Architecture | VOL-ARCH | 14 | 0 | 35 | 0 | 49 |
+| [`01-architecture.md`](docs/specs/01-architecture.md) | Architecture | VOL-ARCH | 39 | 0 | 10 | 0 | 49 |
 | [`02-playback.md`](docs/specs/02-playback.md) | Shared model + Playback | VOL-VM, VOL-ROW, VOL-MTR, VOL-FLT, VOL-PB | 2 | 1 | 39 | 0 | 42 |
 | [`03-recording.md`](docs/specs/03-recording.md) | Recording | VOL-REC | 0 | 1 | 7 | 0 | 8 |
 | [`04-output-devices.md`](docs/specs/04-output-devices.md) | Output Devices | VOL-OUT | 0 | 1 | 11 | 1 | 13 |
-| [`05-input-devices.md`](docs/specs/05-input-devices.md) | Input Devices | VOL-IN | 0 | 1 | 8 | 0 | 9 |
+| [`05-input-devices.md`](docs/specs/05-input-devices.md) | Input Devices | VOL-IN | 1 | 1 | 7 | 0 | 9 |
 | [`06-configuration.md`](docs/specs/06-configuration.md) | Configuration | VOL-CFG | 0 | 1 | 8 | 0 | 9 |
 | [`07-input-and-keybindings.md`](docs/specs/07-input-and-keybindings.md) | Input, keys, status line | VOL-KEY | 6 | 1 | 7 | 0 | 14 |
 | [`08-visual-design.md`](docs/specs/08-visual-design.md) | Visual design | VOL-VIS | 6 | 1 | 3 | 0 | 10 |
-| [`09-testing-and-quality.md`](docs/specs/09-testing-and-quality.md) | Testing, QA, platforms, packaging | VOL-TEST, VOL-QA, VOL-PLAT, VOL-PKG | 11 | 1 | 25 | 0 | 37 |
-| | **Total** | | 39 | 8 | 143 | 1 | 191 |
+| [`09-testing-and-quality.md`](docs/specs/09-testing-and-quality.md) | Testing, QA, platforms, packaging | VOL-TEST, VOL-QA, VOL-PLAT, VOL-PKG | 15 | 1 | 21 | 0 | 37 |
+| | **Total** | | 69 | 8 | 113 | 1 | 191 |
 
 Counts exclude the 8 `VOL-GEN-*` rows of §2 (all `n/a`).
 
@@ -136,7 +136,7 @@ Consulted:
 | # | Item (where) | Procedure summary |
 |---|---|---|
 | VF-01 | `pipewire 0.10.1` API surface & loop type names (VOL-ARCH-015/016) | **Closed** 2026-10-24, PipeWire 1.6.9 (M1-T01): every API exists with a safe wrapper, no `sys` fallback; names in VOL-ARCH-015/016 and the Spike results table of `docs/plans/01-backend-store.md`. Procedure: compile a short spike using every API in VOL-ARCH-016 and run it against a private daemon |
-| VF-02 | Core `error` event semantic on daemon death (VOL-ARCH-042) | kill `pipewire`; log `(id, seq, res, message)` |
+| VF-02 | Core `error` event semantic on daemon death (VOL-ARCH-042) | **Closed** 2026-10-24, PipeWire 1.6.9 (M1-T08/T13, private daemon): `error(id 0, seq, -32, "connection error")` within ~6 ms of the kill; missing socket → errno 112. Procedure: kill `pipewire`; log `(id, seq, res, message)` |
 | VF-03 | `Props.volume ≠ 1.0` multiplicative (VOL-VM-001) | `pw-cli set-param … Props '{ volume: 0.5 }'` on a test node |
 | VF-04 | Pod encoding of `channelVolumes`/`mute` writes (VOL-VM-011) | serialize, compare with `pw-cli` equivalent on a null sink |
 | VF-05 | ACP hardware volume echo / no double attenuation (VOL-VM-012) | set via vol, read device `Route` param |
