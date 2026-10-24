@@ -18,14 +18,9 @@ cargo run
 
 ### Nix
 
-`flake.nix` provides a dev shell and `.envrc` contains `use flake` for direnv. The shell is **not yet complete**: its `devShells.default.packages` contains `rustToolchain`, `openssl`, `pkg-config`, `cargo-deny`, `cargo-edit`, `cargo-watch` and `rust-analyzer`. It lacks what the build needs:
+`flake.nix` provides a dev shell for `x86_64-linux` and `aarch64-linux`; `.envrc` contains `use flake` for direnv. Enter it with `nix develop` (or `direnv allow`). It is meant to build without host packages: it supplies the stable Rust toolchain (from `rust-overlay`, or `rust-toolchain.toml` if one is added), `just`, `cargo-deny`, `pkg-config`, `pipewire` (its `dev` output provides the `libpipewire-0.3` and `libspa-0.2` headers and pkg-config files), `clang` and `llvmPackages.libclang`, and sets `LIBCLANG_PATH` for bindgen. `cargo-edit`, `cargo-watch` and `rust-analyzer` are included for convenience. The shell has not yet been verified on a Nix machine; reports welcome.
 
-- `just`
-- `pipewire` (its `dev` output provides the headers and pkg-config files)
-- `clang`
-- `llvmPackages.libclang`, with `env.LIBCLANG_PATH = "${pkgs.llvmPackages.libclang.lib}/lib";`
-
-Per [09 §7](docs/specs/09-testing-and-quality.md#7-packaging-notes), `openssl` is unused and the `x86_64-darwin` and `aarch64-darwin` systems should be dropped. Until the shell is fixed, use the distribution packages from the README.
+The shell has no `rustup`, so `just msrv` (`cargo +1.88 …`) does not work inside it; run that recipe with a rustup-managed 1.88 toolchain outside the shell.
 
 ## Local gate
 

@@ -11,8 +11,8 @@
 
   outputs = { self, nixpkgs, rust-overlay }:
     let
-      supportedSystems =
-        [ "x86_64-linux" "aarch64-linux" "x86_64-darwin" "aarch64-darwin" ];
+      # Linux only (VOL-PLAT-001).
+      supportedSystems = [ "x86_64-linux" "aarch64-linux" ];
       forEachSupportedSystem = f:
         nixpkgs.lib.genAttrs supportedSystems (system:
           f {
@@ -39,8 +39,13 @@
         default = pkgs.mkShell {
           packages = with pkgs; [
             rustToolchain
-            openssl
+            just
             pkg-config
+            # libpipewire-0.3 and libspa-0.2 headers and .pc files (dev output)
+            pipewire
+            # bindgen (pipewire-sys, libspa-sys) needs libclang
+            clang
+            llvmPackages.libclang
             cargo-deny
             cargo-edit
             cargo-watch
@@ -51,6 +56,7 @@
             # Required by rust-analyzer
             RUST_SRC_PATH =
               "${pkgs.rustToolchain}/lib/rustlib/src/rust/library";
+            LIBCLANG_PATH = "${pkgs.llvmPackages.libclang.lib}/lib";
           };
         };
       });
