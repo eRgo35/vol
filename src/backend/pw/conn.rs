@@ -18,7 +18,7 @@ use pipewire::properties::PropertiesBox;
 use pipewire::registry::RegistryRc;
 
 use super::Outbox;
-use super::registry::{self, Objects};
+use super::registry::{self, InitialSync, Objects, SyncStep};
 use crate::backend::{BackendEvent, DisconnectReason};
 use crate::log;
 
@@ -67,27 +67,48 @@ pub(super) struct State {
     pub(super) objects: Objects,
     socket: String,
     server_version: String,
-    /// Seq of the initial `core.sync`, until its `done` arrives.
-    initial_sync: Option<i32>,
+    /// Progress of the initial snapshot.
+    sync: InitialSync,
+    /// Seq of the sync that completes enumerations opened after the snapshot.
+    pub(super) flush_sync: Option<i32>,
     /// Set by a fatal core error; the loop is quit and the session torn down
     /// outside the callback.
     lost: Option<DisconnectReason>,
 }
 
 impl State {
-    fn on_done(&mut self, seq: i32) {
-        if self.initial_sync == Some(seq) {
-            self.initial_sync = None;
-            log::info(format_args!(
-                "vol-pw: connected to {} (PipeWire {})",
-                self.socket, self.server_version
-            ));
-            log::debug(format_args!("vol-pw: snapshot: {}", self.objects.counts()));
-            self.out.send(BackendEvent::Connected {
-                server_version: self.server_version.clone(),
-                socket: self.socket.clone(),
-            });
+    /// Handles a core `done`. `Resync` asks the caller for the second
+    /// snapshot sync.
+    fn on_done(&mut self, seq: i32) -> SyncStep {
+        let step = self.sync.on_done(seq);
+        match step {
+            SyncStep::Connected => {
+                self.objects.flush_enumerations(&self.out);
+                log::info(format_args!(
+                    "vol-pw: connected to {} (PipeWire {})",
+                    self.socket, self.server_version
+                ));
+                log::debug(format_args!("vol-pw: snapshot: {}", self.objects.counts()));
+                self.out.send(BackendEvent::Connected {
+                    server_version: self.server_version.clone(),
+                    socket: self.socket.clone(),
+                });
+            }
+            SyncStep::Ignore if self.flush_sync == Some(seq) => {
+                self.flush_sync = None;
+                self.objects.flush_enumerations(&self.out);
+            }
+            SyncStep::Ignore | SyncStep::Resync => {}
         }
+        step
+    }
+
+    /// True when an enumeration opened after the snapshot has no sync yet
+    /// that will complete it.
+    pub(super) fn wants_flush_sync(&self) -> bool {
+        self.sync == InitialSync::Done
+            && self.flush_sync.is_none()
+            && self.objects.has_open_enumerations()
     }
 }
 
@@ -157,7 +178,8 @@ impl Session {
             objects: Objects::default(),
             socket,
             server_version: String::new(),
-            initial_sync: None,
+            sync: InitialSync::Starting,
+            flush_sync: None,
             lost: None,
         }));
         let core_listener = core
@@ -170,20 +192,38 @@ impl Session {
             })
             .done({
                 let state = Rc::downgrade(&state);
+                let core = core.downgrade();
                 move |_id, seq| {
-                    with_state(&state, |s| s.on_done(seq.seq()));
+                    let step = with_state(&state, |s| s.on_done(seq.seq()));
+                    if step == Some(SyncStep::Resync)
+                        && let Some(core) = core.upgrade()
+                    {
+                        match core.sync(0) {
+                            Ok(seq) => {
+                                with_state(&state, |s| s.sync.awaiting_replies(seq.seq()));
+                            }
+                            Err(err) => {
+                                log::warn(format_args!("vol-pw: snapshot sync failed: {err}"))
+                            }
+                        }
+                    }
                 }
             })
             .error({
                 let state = Rc::downgrade(&state);
                 let main_loop = main_loop.downgrade();
                 move |id, seq, res, message| {
+                    if id != PW_ID_CORE {
+                        // A failed request on one proxy (e.g. a node without
+                        // a `ProcessLatency` param answers -ENOENT): not fatal.
+                        log::debug(format_args!(
+                            "vol-pw: error on proxy {id}: seq {seq}, res {res}, {message:?}"
+                        ));
+                        return;
+                    }
                     log::warn(format_args!(
                         "vol-pw: core error: id {id}, seq {seq}, res {res}, message {message:?}"
                     ));
-                    if id != PW_ID_CORE {
-                        return;
-                    }
                     with_state(&state, |s| s.lost = Some(reason_for_errno(-res)));
                     if let Some(main_loop) = main_loop.upgrade() {
                         main_loop.quit();
@@ -200,9 +240,10 @@ impl Session {
             .global({
                 let state = Rc::downgrade(&state);
                 let registry = registry.downgrade();
+                let core = core.downgrade();
                 move |global| {
-                    if let Some(registry) = registry.upgrade() {
-                        registry::on_global(&state, &registry, global);
+                    if let (Some(registry), Some(core)) = (registry.upgrade(), core.upgrade()) {
+                        registry::on_global(&state, &registry, &core, global);
                     }
                 }
             })
@@ -216,7 +257,7 @@ impl Session {
             log::warn(format_args!("vol-pw: initial sync failed: {err}"));
             DisconnectReason::ConnectionLost
         })?;
-        state.borrow_mut().initial_sync = Some(seq.seq());
+        state.borrow_mut().sync = InitialSync::Globals(seq.seq());
         Ok(Self {
             state,
             _registry_listener: registry_listener,

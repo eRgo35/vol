@@ -333,3 +333,41 @@ fn registry_snapshot_contains_a_sink() {
     }
     assert!(handle.shutdown(Duration::from_secs(1)));
 }
+
+#[test]
+#[ignore = "live: needs PipeWire; run with `just test-live`"]
+fn connected_arrives_after_snapshot_with_params() {
+    if !require_live() {
+        return;
+    }
+    let (_daemon, handle, snapshot) = start_private(false);
+    let sink = snapshot
+        .iter()
+        .position(|e| {
+            matches!(
+                e,
+                StoreEvent::NodeAdded { props, .. }
+                    if props.get("node.name").map(String::as_str) == Some(SINK)
+            )
+        })
+        .expect("NodeAdded for the null sink");
+    let StoreEvent::NodeAdded { id, .. } = snapshot[sink] else {
+        unreachable!()
+    };
+    // Volume state is part of the snapshot, after its NodeAdded (VOL-ARCH-023).
+    let audio = snapshot[sink..].iter().find_map(|e| match e {
+        StoreEvent::NodeAudio {
+            id: audio_id,
+            audio,
+        } if *audio_id == id => Some(audio),
+        _ => None,
+    });
+    let audio = audio.unwrap_or_else(|| panic!("no NodeAudio before Connected: {snapshot:?}"));
+    assert_eq!(audio.channel_volumes.len(), 2, "{audio:?}");
+    assert_eq!(audio.channel_map.len(), 2, "{audio:?}");
+    assert!(snapshot[sink..].iter().any(|e| matches!(
+        e,
+        StoreEvent::NodeInfo { id: info_id, .. } if *info_id == id
+    )));
+    assert!(handle.shutdown(Duration::from_secs(1)));
+}
