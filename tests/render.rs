@@ -20,7 +20,7 @@ fn app(color: bool) -> App {
         color,
         mouse: false,
     };
-    App::new(options, BackendHandle::inert().commands, Instant::now())
+    App::new(options, BackendHandle::inert(), Instant::now())
 }
 
 fn render(app: &App, width: u16, height: u16) -> Buffer {

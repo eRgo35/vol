@@ -1,7 +1,7 @@
 //! Event sources merged into one channel: ticks, terminal input, backend
 //! events and termination signals (01 §3, VOL-ARCH-012, VOL-ARCH-062).
 
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use color_eyre::eyre::OptionExt;
 use futures::StreamExt;
@@ -17,8 +17,9 @@ pub const TICK_FPS: f64 = 30.0;
 /// Everything the app loop reacts to.
 #[derive(Clone, Debug)]
 pub enum Event {
-    /// Emitted at [`TICK_FPS`]; the app draws only on ticks.
-    Tick,
+    /// Emitted at [`TICK_FPS`] with the current time; the app draws only on
+    /// ticks and takes its clock from them.
+    Tick(Instant),
     /// Terminal input (keys, resize, …).
     Crossterm(CrosstermEvent),
     /// A message from the audio backend.
@@ -74,8 +75,8 @@ async fn ticks(sender: UnboundedSender<Event>) {
     loop {
         tokio::select! {
             () = sender.closed() => break,
-            _ = interval.tick() => {
-                if sender.send(Event::Tick).is_err() {
+            at = interval.tick() => {
+                if sender.send(Event::Tick(at.into_std())).is_err() {
                     break;
                 }
             }
@@ -153,7 +154,7 @@ mod tests {
                 .await
                 .expect("timed out waiting for an event")
                 .unwrap();
-            if !matches!(event, Event::Tick) {
+            if !matches!(event, Event::Tick(_)) {
                 return event;
             }
         }
