@@ -74,8 +74,8 @@ pub(super) struct State {
     sync: InitialSync,
     /// Seq of the sync that completes enumerations opened after the snapshot.
     pub(super) flush_sync: Option<i32>,
-    /// Set by a fatal core error; the loop is quit and the session torn down
-    /// outside the callback.
+    /// Set by a fatal core error; the driver tears the session down after
+    /// the loop iteration, outside the callback.
     lost: Option<DisconnectReason>,
 }
 
@@ -215,7 +215,6 @@ impl Session {
             })
             .error({
                 let state = Rc::downgrade(&state);
-                let main_loop = main_loop.downgrade();
                 move |id, seq, res, message| {
                     if id != PW_ID_CORE {
                         // A failed request on one proxy (e.g. a node without
@@ -229,9 +228,6 @@ impl Session {
                         "vol-pw: core error: id {id}, seq {seq}, res {res}, message {message:?}"
                     ));
                     with_state(&state, |s| s.lost = Some(reason_for_errno(-res)));
-                    if let Some(main_loop) = main_loop.upgrade() {
-                        main_loop.quit();
-                    }
                 }
             })
             .register();
@@ -275,6 +271,11 @@ impl Session {
     /// Why the connection broke, once a fatal core error was reported.
     pub(super) fn lost(&self) -> Option<DisconnectReason> {
         self.state.borrow().lost.clone()
+    }
+
+    /// True once `Connected` was emitted for this connection.
+    pub(super) fn is_connected(&self) -> bool {
+        self.state.borrow().sync == InitialSync::Done
     }
 }
 

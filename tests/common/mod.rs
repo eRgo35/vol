@@ -114,6 +114,26 @@ impl PrivateDaemon {
             .is_some_and(|wp| matches!(wp.try_wait(), Ok(None)))
     }
 
+    /// Kills the private `pipewire` (our own child, nothing else), as if the
+    /// daemon crashed. Its socket file is left behind, as after a real crash.
+    pub fn kill_pipewire(&mut self) {
+        let _ = self.pipewire.kill();
+        let _ = self.pipewire.wait();
+    }
+
+    /// Starts a new private `pipewire` on the same socket path (killing the
+    /// current one first if it still runs), waits for its socket and checks
+    /// that it is served by the new child.
+    pub fn restart_pipewire(&mut self) {
+        self.kill_pipewire();
+        for stale in ["pipewire-0", "pipewire-0-manager"] {
+            let _ = fs::remove_file(self.root.join(stale));
+        }
+        self.pipewire = spawn_logged(&self.root, "pipewire");
+        self.wait_for_socket();
+        self.verify_private();
+    }
+
     /// Kills the private `wireplumber` and starts a new one with the same
     /// environment and drop-in (a session-manager restart while the daemon
     /// stays up). Returns false if no WirePlumber was running.

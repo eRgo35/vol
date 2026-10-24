@@ -16,7 +16,8 @@
 //! there, checks with `pw-cli info 0` that the socket is served by that child,
 //! and on drop kills the daemons and removes the directory. The user's own
 //! session is never contacted: every PipeWire process gets `env_clear()` plus
-//! `PrivateDaemon::env()`.
+//! `PrivateDaemon::env()`. Reconnect tests kill and restart only that child
+//! (`kill_pipewire`, `restart_pipewire`, same socket path).
 //!
 //! # Verified environment recipe (PipeWire 1.6.9, WirePlumber 0.5.18, 2026-10-24)
 //!
@@ -59,7 +60,8 @@ use common::{PrivateDaemon, require_live};
 use tokio::sync::mpsc::error::TryRecvError;
 use vol::backend::pw::spawn_pipewire_at;
 use vol::backend::{
-    BackendEvent, BackendGone, BackendHandle, Command, DisconnectReason, StoreEvent,
+    BackendError, BackendEvent, BackendGone, BackendHandle, Command, CommandKind, DisconnectReason,
+    StoreEvent,
 };
 use vol::model::{ObjectId, PortDir};
 
@@ -437,4 +439,152 @@ fn wireplumber_restart_clears_and_rebinds_default_metadata() {
         &events[before..]
     );
     assert!(handle.shutdown(Duration::from_secs(1)));
+}
+
+/// Skips store batches until the next `Disconnected` (≤ `timeout`) and
+/// returns its fields.
+fn wait_disconnected(
+    handle: &mut BackendHandle,
+    timeout: Duration,
+) -> Option<(DisconnectReason, Option<Duration>, u32)> {
+    let deadline = Instant::now() + timeout;
+    loop {
+        let left = deadline.saturating_duration_since(Instant::now());
+        match next_event(handle, left)? {
+            BackendEvent::Disconnected {
+                reason,
+                retry_in,
+                attempt,
+            } => return Some((reason, retry_in, attempt)),
+            BackendEvent::Batch(_) => {}
+            other => panic!("unexpected event: {other:?}"),
+        }
+    }
+}
+
+/// Notes a measured timing on stderr (shown with `--nocapture`).
+fn report(what: &str, took: Duration) {
+    let _ = writeln!(std::io::stderr(), "{what}: {took:?}");
+}
+
+const fn ms(millis: u64) -> Duration {
+    Duration::from_millis(millis)
+}
+
+#[test]
+#[ignore = "live: needs PipeWire; run with `just test-live`"]
+fn killing_daemon_reports_connection_lost_within_2s() {
+    if !require_live() {
+        return;
+    }
+    let (mut daemon, mut handle, _) = start_private(false);
+    let killed = Instant::now();
+    daemon.kill_pipewire();
+    let lost = wait_disconnected(&mut handle, Duration::from_secs(2));
+    let took = killed.elapsed();
+    report("kill -> Disconnected", took);
+    assert_eq!(
+        lost,
+        Some((DisconnectReason::ConnectionLost, Some(ms(500)), 1))
+    );
+    assert!(took < Duration::from_secs(2), "{took:?}");
+    assert!(handle.shutdown(Duration::from_secs(1)));
+}
+
+#[test]
+#[ignore = "live: needs PipeWire; run with `just test-live`"]
+fn restarting_daemon_reconnects_within_12s() {
+    if !require_live() {
+        return;
+    }
+    let (mut daemon, mut handle, _) = start_private(false);
+    daemon.kill_pipewire();
+    let lost = wait_disconnected(&mut handle, Duration::from_secs(2));
+    assert_eq!(
+        lost,
+        Some((DisconnectReason::ConnectionLost, Some(ms(500)), 1))
+    );
+    // Two failed retries while the daemon is down, with growing backoff.
+    for (attempt, delay) in [(2, ms(1000)), (3, ms(2000))] {
+        let failed = wait_disconnected(&mut handle, Duration::from_secs(3));
+        assert_eq!(
+            failed,
+            Some((DisconnectReason::NoDaemon, Some(delay), attempt))
+        );
+    }
+    daemon.restart_pipewire();
+    let restarted = Instant::now();
+    loop {
+        let left = Duration::from_secs(12).saturating_sub(restarted.elapsed());
+        match next_event(&mut handle, left) {
+            Some(BackendEvent::Connected { socket, .. }) => {
+                assert_eq!(socket, daemon.socket().display().to_string());
+                break;
+            }
+            Some(BackendEvent::Disconnected { reason, .. }) => {
+                assert_eq!(reason, DisconnectReason::NoDaemon);
+            }
+            Some(BackendEvent::Batch(events)) => assert!(
+                !events.iter().any(|e| matches!(
+                    e,
+                    StoreEvent::DeviceAdded { props, .. }
+                        if props.get("media.class").map(String::as_str) == Some("Audio/Device")
+                )),
+                "not the private daemon: {events:?}"
+            ),
+            other => panic!("no Connected within 12 s of the restart: {other:?}"),
+        }
+    }
+    let took = restarted.elapsed();
+    report("restart -> Connected", took);
+    assert!(took < Duration::from_secs(12), "{took:?}");
+    // `Connected` reset the attempt counter.
+    daemon.kill_pipewire();
+    let lost = wait_disconnected(&mut handle, Duration::from_secs(2));
+    assert_eq!(
+        lost,
+        Some((DisconnectReason::ConnectionLost, Some(ms(500)), 1))
+    );
+    assert!(handle.shutdown(Duration::from_secs(1)));
+}
+
+#[test]
+#[ignore = "live: needs PipeWire; run with `just test-live`"]
+fn shutdown_during_backoff_returns_within_100ms() {
+    if !require_live() {
+        return;
+    }
+    let missing = std::env::temp_dir()
+        .join(format!("vol-no-daemon-{}", std::process::id()))
+        .join("pipewire-0");
+    assert!(!missing.exists());
+    let mut handle = spawn_at(missing);
+    for (attempt, delay) in [(1, ms(500)), (2, ms(1000))] {
+        let failed = wait_disconnected(&mut handle, Duration::from_secs(1));
+        assert_eq!(
+            failed,
+            Some((DisconnectReason::NoDaemon, Some(delay), attempt))
+        );
+    }
+    // Inside the 1 s wait before attempt 3, commands are still answered.
+    let sent = Instant::now();
+    let mute = Command::SetMute {
+        node: ObjectId(1),
+        mute: true,
+    };
+    assert_eq!(handle.commands.send(mute), Ok(()));
+    let reply = next_event(&mut handle, ms(100));
+    report("command -> CommandFailed", sent.elapsed());
+    assert_eq!(
+        reply,
+        Some(BackendEvent::CommandFailed {
+            cmd: CommandKind::SetMute,
+            error: BackendError::NotConnected,
+        })
+    );
+    let asked = Instant::now();
+    assert!(handle.shutdown(Duration::from_secs(1)));
+    let took = asked.elapsed();
+    report("Shutdown during backoff -> joined", took);
+    assert!(took < ms(100), "{took:?}");
 }
