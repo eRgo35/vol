@@ -21,11 +21,11 @@ Index and working conventions for implementing [`SPEC.md`](SPEC.md). Scheduling 
 
 ## 2. Verification is local
 
-* The gate is **`just check`** = `fmt` → `clippy` (`-D warnings`, all targets/features, `--locked`) → `test` (`--locked --all-features --all-targets`) → `doc` (`RUSTDOCFLAGS=-D warnings`) → `deny` → `msrv` (`cargo +1.85 check`). Run it before every push.
+* The gate is **`just check`** = `fmt` → `clippy` (`-D warnings`, all targets/features, `--locked`) → `test` (`--locked --all-features --all-targets`) → `doc` (`RUSTDOCFLAGS=-D warnings`) → `deny` → `msrv` (`cargo +1.88 check`). Run it before every push.
 * `scripts/install-hooks.sh` sets `core.hooksPath=scripts/hooks`; the `pre-push` hook runs `just check`. `git push --no-verify` is for emergencies only and MUST NOT be used to land a milestone (VOL-QA-009).
 * GitHub Actions runs **only** for tags `v*.*.*` (`release.yml`). Plans never add CI jobs, status checks or "CI will verify" steps (VOL-GEN-008, VOL-QA-010). The PR template's checklist is the review-time substitute.
 * Tests needing a PipeWire daemon are `#[ignore]`d and run explicitly: `VOL_TEST_PIPEWIRE=1 cargo test --test live -- --ignored`, against a **private** daemon or `support.null-audio-sink` nodes created by the test (VOL-QA-007). They are part of milestone acceptance (run by hand) but not of `just check`.
-* Toolchain prerequisites on the dev machine: `just`, `cargo-deny`, `rustup toolchain install 1.85`, `libpipewire-0.3` + `libspa-0.2` dev packages, `clang`/`libclang` (build deps table: SPEC 09 §7).
+* Toolchain prerequisites on the dev machine: `just`, `cargo-deny`, `rustup toolchain install 1.88`, `libpipewire-0.3` + `libspa-0.2` dev packages, `clang`/`libclang` (build deps table: SPEC 09 §7).
 * Tooling files (`justfile`, `deny.toml`, `scripts/`, `.github/`) are owned by the tooling task. A plan that needs a new recipe (e.g. `test-live`) lists it as an explicit task; the implementer edits the file in that task's commit.
 
 ## 3. Branching

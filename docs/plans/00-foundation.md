@@ -16,25 +16,25 @@ Parts of some requirements are delivered earlier or later than their owner miles
 
 ## Pre-flight (once)
 
-* `scripts/install-hooks.sh`; `rustup toolchain install 1.85`; `pkg-config --modversion libpipewire-0.3` prints a version (author machine: 1.6.9); `just --version`, `cargo deny --version`.
+* `scripts/install-hooks.sh`; `rustup toolchain install 1.88`; `pkg-config --modversion libpipewire-0.3` prints a version (author machine: 1.6.9); `just --version`, `cargo deny --version`.
 * `git switch -c m0/foundation`.
 
 ## Tasks
 
 ### M0-T01 Baseline gate
-* **Do:** run `just check` on the unmodified tree. Fix only what blocks it (fmt, unused imports, e.g. the `use crate::App` in `tabs/output_devices.rs`, clippy lints). If `msrv` fails because 1.85 is missing, install it. Note any `cargo deny` warnings (duplicate `strum` 0.26/0.27 is expected: warn only).
+* **Do:** run `just check` on the unmodified tree. Fix only what blocks it (fmt, unused imports, e.g. the `use crate::App` in `tabs/output_devices.rs`, clippy lints). If `msrv` fails because 1.88 is missing, install it. Note any `cargo deny` warnings (duplicate crate versions: warn only).
 * **Files:** whatever the failures require (no behavior change).
 * **Tests first:** none (existing: zero tests; `cargo test` must still pass).
 * **Done when:** `just check` exits 0; `bash scripts/hooks/pre-push` exits 0.
 * **Reqs:** VOL-QA-001, VOL-QA-005, VOL-QA-006, VOL-QA-009, VOL-QA-010 (verify only: `release.yml` untouched).
 
 ### M0-T02 Cargo hygiene, lints, dev-dependencies
-* **Do:** in `Cargo.toml`: `rust-version = "1.85"`; `[features] mock = []`; `[dev-dependencies] proptest`, `insta` (latest versions that build on 1.85 — check with `just msrv`; pin lower if needed); `[lints.rust] unsafe_code = "deny"`; `[lints.clippy] unwrap_used = "warn"`, `expect_used = "warn"`, `dbg_macro = "deny"`, `todo = "deny"`, `print_stdout = "deny"`, `print_stderr = "deny"`. Allow the unwrap/expect lints in tests via `#![cfg_attr(test, allow(clippy::unwrap_used, clippy::expect_used))]` in `lib.rs` and `#![allow(clippy::unwrap_used, clippy::expect_used)]` at the top of each `tests/*.rs`. Do **not** add production dependencies yet (`serde_json` arrives in M1).
+* **Do:** in `Cargo.toml`: `rust-version = "1.88"`; `[features] mock = []`; `[dev-dependencies] proptest`, `insta` (latest versions that build on 1.88 — check with `just msrv`; pin lower if needed); `[lints.rust] unsafe_code = "deny"`; `[lints.clippy] unwrap_used = "warn"`, `expect_used = "warn"`, `dbg_macro = "deny"`, `todo = "deny"`, `print_stdout = "deny"`, `print_stderr = "deny"`. Allow the unwrap/expect lints in tests via `#![cfg_attr(test, allow(clippy::unwrap_used, clippy::expect_used))]` in `lib.rs` and `#![allow(clippy::unwrap_used, clippy::expect_used)]` at the top of each `tests/*.rs`. Do **not** add production dependencies yet (`serde_json` arrives in M1).
 * **Files:** `Cargo.toml`, `Cargo.lock`.
 * **Tests first:** none.
 * **Done when:** `just check` green incl. `msrv` and `deny` (licenses of `insta`/`proptest` are permissive and allowed in `deny.toml`; if not, add a justified exception).
 * **Reqs:** VOL-QA-002, VOL-QA-003, VOL-QA-004. Decides Q10 (dev-deps part).
-* **Note:** keep `crossterm` at the version `ratatui 0.29` re-exports (0.28.x); import crossterm types via `ratatui::crossterm` to avoid dual-version type errors.
+* **Note:** keep `crossterm` at the version `ratatui 0.30` re-exports (0.29.x); import crossterm types via `ratatui::crossterm` to avoid dual-version type errors.
 
 ### M0-T03 Library + binary split
 * **Do:** create `src/lib.rs` with `pub mod app; pub mod event; pub mod tabs; pub mod ui;` (more later); `main.rs` keeps only `fn main` using `vol::…`. Add crate docs line. Module visibility: `pub` (lib) so unused-code lints don't fire on not-yet-used pub items.
@@ -195,7 +195,7 @@ Touched here but owned by another milestone (partial work or verification only):
 | Risk | Mitigation |
 |---|---|
 | `print_stdout` deny conflicts with `--help` | write via `std::io::Write` handles (no `println!`); no `#[allow]`. |
-| `insta`/`proptest` newest versions exceed MSRV 1.85 | pin an older compatible version; `just msrv` catches it in T02. |
+| `insta`/`proptest` newest versions exceed MSRV 1.88 | pin an older compatible version; `just msrv` catches it in T02. |
 | lib+bin same name warns in `cargo doc` | `[[bin]] doc = false` (T03). |
 | `Event: Clone` requires `BackendEvent: Clone` | all message types derive `Clone`; `BackendError::Pipewire(i32, String)` is clonable. |
 | Dependabot crossterm 0.29 branch conflicts with ratatui 0.29 | ignore until ratatui is bumped together; use `ratatui::crossterm` paths. |

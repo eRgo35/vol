@@ -9,7 +9,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 ### Added
 
 - Specification: `SPEC.md` and `docs/specs/` (requirement IDs `VOL-<AREA>-<NNN>`, status per requirement, VERIFY index).
-- Local quality gate: `justfile` with `just check` (fmt, clippy, test, doc, cargo-deny, MSRV 1.85) and `just release-check`.
+- Local quality gate: `justfile` with `just check` (fmt, clippy, test, doc, cargo-deny, MSRV 1.88) and `just release-check`.
 - `scripts/install-hooks.sh` and a `pre-push` hook that runs `just check`.
 - `deny.toml` for cargo-deny (permissive licenses only).
 - Release workflow `.github/workflows/release.yml`: builds an x86_64 Linux tarball and `SHA256SUMS` on `vX.Y.Z` tags.
@@ -20,6 +20,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 - `README.md` replaces the template text with project documentation, planned features, requirements, keys and the clean-room statement.
 - `.github/dependabot.yml` updated.
+- Dependencies bumped to latest (ratatui 0.30, crossterm 0.29, pipewire 0.10.1, tokio 1.54, strum 0.28); MSRV raised to 1.88.
 
 ### Removed
 

@@ -8,7 +8,7 @@ Install the build dependencies listed in [README.md](README.md#requirements) (Pi
 
 ```sh
 rustup toolchain install stable
-rustup toolchain install 1.85        # needed for `just msrv`
+rustup toolchain install 1.88        # needed for `just msrv`
 cargo install --locked just cargo-deny
 scripts/install-hooks.sh             # once per clone
 cargo run
@@ -44,7 +44,7 @@ just check
 | `test` | `cargo test --locked --all-features --all-targets` |
 | `doc` | `RUSTDOCFLAGS="-D warnings" cargo doc --no-deps --all-features --locked` |
 | `deny` | `cargo deny check` (licenses are permissive-only; see `deny.toml`) |
-| `msrv` | `cargo +1.85 check --locked --all-features --all-targets` |
+| `msrv` | `cargo +1.88 check --locked --all-features --all-targets` |
 
 `just release-check` runs the gate and then `cargo build --release --locked`.
 

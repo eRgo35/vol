@@ -4,7 +4,7 @@ Last updated: 2026-10-21. Spec: [`SPEC.md`](SPEC.md) and `docs/specs/`. Executio
 
 ## Ground rules
 
-* **Verification is local.** A milestone is done when `just check` (fmt, clippy `-D warnings`, test, doc `-D warnings`, deny, msrv 1.85) passes on the author's Linux machine, the pre-push hook (`scripts/hooks/pre-push`, installed by `scripts/install-hooks.sh`) lets the push through, and the milestone's manual acceptance items pass against a live PipeWire session. GitHub Actions is used **only** to build and publish a release when a `v*.*.*` tag is pushed (`.github/workflows/release.yml`). No milestone adds, requires or relies on CI verification (VOL-GEN-008).
+* **Verification is local.** A milestone is done when `just check` (fmt, clippy `-D warnings`, test, doc `-D warnings`, deny, msrv 1.88) passes on the author's Linux machine, the pre-push hook (`scripts/hooks/pre-push`, installed by `scripts/install-hooks.sh`) lets the push through, and the milestone's manual acceptance items pass against a live PipeWire session. GitHub Actions is used **only** to build and publish a release when a `v*.*.*` tag is pushed (`.github/workflows/release.yml`). No milestone adds, requires or relies on CI verification (VOL-GEN-008).
 * Milestone status values: `Not started`, `In progress`, `Done`. A milestone is `Done` only when every requirement assigned to it has status `Implemented` in the specs (or `n/a`), its exit criteria hold, and its plan's Definition of Done is ticked.
 * Each requirement ID belongs to exactly one milestone (the one that delivers its last clause). Plans note partial deliveries.
 * Ordering follows the dependency chain *types → pure reducer → backend → read-only UI → writes → more tabs → meters → polish → release*. Pure code (model, volume math, views, keymap, layout) is always written and tested before the code that needs a PipeWire daemon.
@@ -39,7 +39,7 @@ Size: S ≈ 2–3 working days, M ≈ 4–6, L ≈ 8–12 (one developer, tasks 
 
 **Exit criteria.**
 
-- `just check` passes (fmt, clippy `-D warnings`, test, doc `-D warnings`, deny, msrv 1.85) and the pre-push hook is installed.
+- `just check` passes (fmt, clippy `-D warnings`, test, doc `-D warnings`, deny, msrv 1.88) and the pre-push hook is installed.
 - `src/legacy.rs`, `App.counter`, `AppEvent::Increment/Decrement` and the `fn xxx_tab(&App) -> String` stubs no longer exist.
 - `vol --help`/`--version` print and exit 0; an unknown flag exits 2 before raw mode.
 - Running `vol`: five tabs switch with `Tab`/`Shift-Tab`/`[`/`]`/`F1`–`F5`; `q`/`Ctrl-C` quit, `Esc` does not; terminal < 40×12 shows the too-small message; `kill -TERM` restores the terminal.
@@ -229,7 +229,7 @@ Each question has a **Proposed default** so work proceeds; the project owner may
 |---|---|---|---|
 | Q1 `Esc` quits? | **Proposed default:** `Esc` never quits; `q`/`Ctrl-C` quit (VOL-KEY-007). | M0-T08 | Edit VOL-KEY-001/007, `keymap` tests; ARCH-066 note. |
 | Q2 Digits = absolute volume vs tab select | **Proposed default:** digits set volume; tabs via `Tab`/`[`/`]`/`F1`–`F5`, optional `Alt-n` (VOL-KEY-005/013). | M0-T08 | Edit 07 §2.1/§2.2, help text, keymap table; `Alt-n` becomes `n`. |
-| Q3 Stay on `pipewire 0.8.0`? | **Proposed default:** stay on 0.8.0 (locked) until the M1 spike shows an API gap; a Dependabot branch for 0.9.2 exists and is evaluated in the same spike (not merged blindly: loop types renamed). | M1-T01 | Re-pin in `Cargo.toml`, adapt VOL-ARCH-015/016 names; MSRV re-check (VOL-QA-003). |
+| Q3 Stay on `pipewire 0.8.0`? | **Decided: upgrade to `pipewire 0.10.1` (0.8.0 / `libspa 0.8.0` no longer compile against PipeWire 1.6.9), 2026-10-24.** All dependencies bumped to latest together (ratatui 0.30 + crossterm 0.29); MSRV raised to 1.88. M1-T01 verifies the 0.10.1 API surface. | M1-T01 | Re-pin in `Cargo.toml`, adapt VOL-ARCH-015/016 names; MSRV re-check (VOL-QA-003). |
 | Q4 Metadata keys for moving streams | **Proposed default:** write `target.node` and `target.object` as `Spa:Id`; drop the redundant one if VF-09 shows it unnecessary. | M4-T01 | Edit 02 §3.4, backend `pw/metadata.rs`, MA-07. |
 | Q5 Meter a `Stream/Output/Audio` node? | **Proposed default:** try; if refused, Playback rows show empty meters. | M7-T01 | Edit 02 §2.4 table, VOL-PB-009. |
 | Q6 Passive vs active source meters | **Proposed default:** passive (`node.passive=true`), `--no-meters` available. | M7-T01 | Edit 02 §2.4 properties, 05 §4 privacy text; adds a flag if active is chosen. |
@@ -246,9 +246,9 @@ Each question has a **Proposed default** so work proceeds; the project owner may
 
 | Risk | Impact | Mitigation |
 |---|---|---|
-| `pipewire-rs 0.8.0` lacks an API (Metadata setter, pod helpers) | M1/M4 blocked | M1-T01 spike first; fall back to `pipewire::sys` with `// SAFETY:` blocks isolated in `backend/pw/` (VOL-QA-002 exception) or upgrade (Q3). |
+| `pipewire-rs 0.10.1` lacks an API (Metadata setter, pod helpers) | M1/M4 blocked | M1-T01 spike first; fall back to `pipewire::sys` with `// SAFETY:` blocks isolated in `backend/pw/` (VOL-QA-002 exception) or upgrade (Q3). |
 | WirePlumber behavior for `target.*`, defaults and route saving differs between versions | M4/M5 behavior | Manual verification on the author's 1.6.9 system; record observed behavior in SPEC; oldest-version check deferred to M9 (VF-16). |
 | Real-session tests change the user's audio | Annoyance/data loss | Live tests are `#[ignore]` + `VOL_TEST_PIPEWIRE=1` and use a private daemon/null sinks (VOL-QA-007). |
 | Local-only verification can be bypassed (`--no-verify`) | Broken main | Hook + PR template checklist; PLAN.md forbids `--no-verify` for milestone merges (VOL-QA-009). |
-| Dependabot bumps (crossterm 0.29 vs ratatui 0.29's 0.28; pipewire 0.9) | Compile errors / type mismatch | Do not merge bumps independently; use `ratatui::crossterm` re-export; bump together deliberately and run `just check`. |
+| Dependabot bumps (ratatui, its crossterm, pipewire) | Compile errors / type mismatch | Do not merge bumps independently; use `ratatui::crossterm` re-export; bump together deliberately and run `just check`. |
 | Scope creep from pavucontrol parity | Schedule | Deferred/non-goal lists are normative; promotion needs a spec section. |

@@ -134,7 +134,7 @@ Consulted:
 
 | # | Item (where) | Procedure summary |
 |---|---|---|
-| VF-01 | `pipewire 0.8.0` API surface & loop type names (VOL-ARCH-015/016) | `cargo doc` locally; compile a 30-line spike using every API in VOL-ARCH-016 |
+| VF-01 | `pipewire 0.10.1` API surface & loop type names (VOL-ARCH-015/016) | `cargo doc` locally; compile a 30-line spike using every API in VOL-ARCH-016 |
 | VF-02 | Core `error` event semantic on daemon death (VOL-ARCH-042) | kill `pipewire`; log `(id, seq, res, message)` |
 | VF-03 | `Props.volume ≠ 1.0` multiplicative (VOL-VM-001) | `pw-cli set-param … Props '{ volume: 0.5 }'` on a test node |
 | VF-04 | Pod encoding of `channelVolumes`/`mute` writes (VOL-VM-011) | serialize, compare with `pw-cli` equivalent on a null sink |
@@ -148,7 +148,7 @@ Consulted:
 | VF-12 | `wpctl set-default` metadata equivalence (04 §3.3) | `pw-metadata -n default` before/after |
 | VF-13 | Latency offset mechanism (VOL-OUT-012) | `Route.props.latencyOffsetNsec` vs node `ProcessLatency` |
 | VF-14 | Profile switch by `Profile` param (06 §4) | `pw-cli set-param <dev> Profile '{ index: i, save: true }'` |
-| VF-15 | MSRV 1.85 builds (VOL-QA-003) | `cargo +1.85 check --locked --all-targets` |
+| VF-15 | MSRV 1.88 builds (VOL-QA-003) | `cargo +1.88 check --locked --all-targets` |
 | VF-16 | Minimum PipeWire/WirePlumber versions (VOL-PLAT-003) | MA-02…MA-09 on Debian 12 |
 
 ## 8. Open questions
@@ -159,7 +159,7 @@ Every question carries a **Proposed default** so work can proceed; the defaults 
 |---|---|---|
 | Q1 | Should `Esc` quit (current template and prototype behavior) or only close overlays? | Esc never quits (VOL-KEY-007); `q`/`Ctrl-C` quit. |
 | Q2 | Digits `1`–`9`,`0` as absolute volume (this spec) vs. direct tab selection (`1`–`5`)? | Volume; tabs via `Tab`/`[`/`]`/`F1`–`F5` (+ optional `Alt-n`). |
-| Q3 | Stay on `pipewire 0.8.0` (locked; Feb 2024) or upgrade to 0.9.x/0.10.x (loop types renamed to `MainLoopRc/Box`, `ContextRc/Box`; newer SPA bindings)? Any API gaps (VOL-ARCH-016) to be filled through `sys` crates? | Stay on 0.8.0 until VF-01 shows a gap; spec names are API-neutral. |
+| Q3 | Stay on `pipewire 0.8.0` (locked; Feb 2024) or upgrade to 0.9.x/0.10.x (loop types renamed to `MainLoopRc/Box`, `ContextRc/Box`; newer SPA bindings)? Any API gaps (VOL-ARCH-016) to be filled through `sys` crates? | Decided: upgrade to `pipewire 0.10.1` (0.8.0 / `libspa 0.8.0` no longer compile against PipeWire 1.6.9), 2026-10-24. VF-01 checks the 0.10.1 API surface; spec names are API-neutral. |
 | Q4 | Which metadata keys/types does the installed WirePlumber actually honor for moving a stream (`target.object` only, `target.node` only, both; `Spa:Id` vs `Spa:String`)? Undocumented in the sources consulted. | Write both as `Spa:Id`; the second write removed if VF-09 shows it unnecessary. |
 | Q5 | Can a capture `pw_stream` target a `Stream/Output/Audio` node to meter a single playback stream? If not, Playback rows have no meter. | Try; degrade to empty meter. |
 | Q6 | Meters on sources: passive (privacy, no wake, empty when idle) vs. active (pavucontrol-like, wakes devices, mic-in-use indicator)? | Passive; `--no-meters` to disable. |

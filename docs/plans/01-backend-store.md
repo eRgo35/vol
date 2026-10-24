@@ -12,7 +12,7 @@ Headless milestone: no new screens. Everything pure is tested without a daemon; 
 
 ## Starting point
 
-M0 delivered: message/model data types, `AudioBackend`/`BackendHandle`, mock, `Event::Backend`, dirty-flag loop. There is no `Store`, no PipeWire code, and `pipewire = "0.8.0"` is declared but unused.
+M0 delivered: message/model data types, `AudioBackend`/`BackendHandle`, mock, `Event::Backend`, dirty-flag loop. There is no `Store`, no PipeWire code, and `pipewire = "0.10.1"` is declared but unused.
 
 ## Pre-flight
 
@@ -21,9 +21,9 @@ M0 delivered: message/model data types, `AudioBackend`/`BackendHandle`, mock, `E
 
 ## Tasks
 
-### M1-T01 Spike: pipewire-rs 0.8.0 API surface (VF-01) and Q3
-* **Do:** in the scratch crate (`pipewire = "=0.8.0"`), write ≤ 100 lines proving each API in VOL-ARCH-016: `pipewire::init`, `MainLoop`/`Context`/`connect`, `channel::{channel, Receiver::attach}`, registry `global`/`global_remove`, binding `Node`/`Device`/`Metadata` (`registry.bind`), `subscribe_params`/`enum_params`/`param` listener, `Device::set_param`, `Node::set_param`, `Metadata::set_property` + `property` listener, `core.sync` + `done`, core `error` listener, loop timer, `Stream` + `param_changed`/`process`, building and parsing a `Props` pod with `libspa::pod` (`Value`, `Object`, `serialize::PodSerializer`, `deserialize::PodDeserializer`). Repeat the compile check with the Dependabot `pipewire 0.9.2` for comparison (types renamed to `MainLoopRc`/`ContextRc`, etc.).
-* **Output (committed):** a "Spike results" table appended to **this plan** (API → exists in 0.8.0? → exact path/signature → workaround), `SPEC.md` §7 VF-01 marked closed, §8 Q3 marked *Decided* (stay/upgrade), and edits to VOL-ARCH-015/016 with the real names. If a needed API is missing, record the `pipewire::sys` fallback and which module will hold the `unsafe` (only `backend/pw/**`, `// SAFETY:` per block).
+### M1-T01 Spike: pipewire-rs 0.10.1 API surface (VF-01)
+* **Do:** in the scratch crate (`pipewire = "=0.10.1"`), write ≤ 100 lines proving each API in VOL-ARCH-016: `pipewire::init`, `MainLoop`/`Context`/`connect`, `channel::{channel, Receiver::attach}`, registry `global`/`global_remove`, binding `Node`/`Device`/`Metadata` (`registry.bind`), `subscribe_params`/`enum_params`/`param` listener, `Device::set_param`, `Node::set_param`, `Metadata::set_property` + `property` listener, `core.sync` + `done`, core `error` listener, loop timer, `Stream` + `param_changed`/`process`, building and parsing a `Props` pod with `libspa::pod` (`Value`, `Object`, `serialize::PodSerializer`, `deserialize::PodDeserializer`). (Q3 already decided in M0: 0.8.0 no longer builds against PipeWire 1.6.9.)
+* **Output (committed):** a "Spike results" table appended to **this plan** (API → exists in 0.10.1? → exact path/signature → workaround), `SPEC.md` §7 VF-01 marked closed, and edits to VOL-ARCH-015/016 with the real names. If a needed API is missing, record the `pipewire::sys` fallback and which module will hold the `unsafe` (only `backend/pw/**`, `// SAFETY:` per block).
 * **Tests first:** n/a (spike).
 * **Done when:** table complete; decision recorded; scratch crate deleted.
 * **Reqs:** VOL-ARCH-015, VOL-ARCH-016.
@@ -185,7 +185,7 @@ Touched here but owned by another milestone (partial work or verification only):
 
 | Risk | Mitigation |
 |---|---|
-| 0.8.0 lacks `Metadata::set_property`/pod helpers | T01 decides: sys fallback or upgrade. Metadata *setters* are only needed in M4, readers now. |
+| 0.10.1 lacks `Metadata::set_property`/pod helpers | T01 decides: sys fallback. Metadata *setters* are only needed in M4, readers now. |
 | Callbacks hold `Rc<RefCell<…>>` cycles → leaks / double borrow | single `State` struct behind `Rc<RefCell>`; callbacks borrow briefly and never call back into PipeWire while borrowed; teardown order documented in `pw/mod.rs`. |
 | Dropping `Core` inside its own `error` callback | set flag, `loop.quit()`, tear down after `run()` returns (T13). |
 | Param `seq` bookkeeping for EnumRoute/EnumProfile | accumulator keyed by `seq` (T11 pure test). |

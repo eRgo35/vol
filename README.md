@@ -24,7 +24,7 @@ Not planned for v1: PulseAudio protocol or PulseAudio-only servers, `pipewire.co
 
 - Linux (x86_64 or aarch64). macOS and Windows are not supported.
 - Runtime: a running PipeWire daemon with its native socket, and WirePlumber for default devices, stream moves and profile persistence.
-- Build: Rust 1.85 or newer (edition 2024), plus PipeWire and libclang development files:
+- Build: Rust 1.88 or newer (edition 2024), plus PipeWire and libclang development files:
 
 | Distribution | Build packages | Runtime packages |
 |---|---|---|
@@ -88,7 +88,7 @@ Planned command-line flags: `--mouse` (opt-in mouse support), `--no-color`, `--n
 
 Verification runs locally. GitHub Actions only builds tagged releases.
 
-- `just check` runs the full gate: formatting, clippy (warnings are errors), tests, docs, `cargo deny`, and MSRV 1.85 type-check.
+- `just check` runs the full gate: formatting, clippy (warnings are errors), tests, docs, `cargo deny`, and MSRV 1.88 type-check.
 - `scripts/install-hooks.sh` points git at `scripts/hooks`, so `git push` runs `just check` first. Skip once with `git push --no-verify`.
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for setup details.

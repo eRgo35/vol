@@ -8,6 +8,6 @@
 
 ## Checklist
 
-- [ ] Ran `just check` locally (fmt, clippy `-D warnings`, tests, docs, deny, MSRV 1.85)
+- [ ] Ran `just check` locally (fmt, clippy `-D warnings`, tests, docs, deny, MSRV 1.88)
 - [ ] Spec ID(s) referenced above
 - [ ] Docs/changelog updated if behavior changed

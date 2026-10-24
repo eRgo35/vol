@@ -24,9 +24,9 @@ doc:
 deny:
     cargo deny check
 
-# Type-check against Rust 1.85 (requires: rustup toolchain install 1.85)
+# Type-check against Rust 1.88 (requires: rustup toolchain install 1.88)
 msrv:
-    cargo +1.85 check --locked --all-features --all-targets
+    cargo +1.88 check --locked --all-features --all-targets
 
 # Full local gate; run before pushing
 check: fmt clippy test doc deny msrv
