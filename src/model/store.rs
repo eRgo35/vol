@@ -301,7 +301,7 @@ pub(crate) mod strategies {
     };
 
     fn id() -> impl Strategy<Value = ObjectId> {
-        (1u32..=6).prop_map(ObjectId)
+        (1u32..=3).prop_map(ObjectId)
     }
 
     fn serial() -> impl Strategy<Value = Serial> {
@@ -417,7 +417,7 @@ pub(crate) mod strategies {
             "garbage",
             "42",
         ]));
-        (0u32..=6, key, type_, value).prop_map(|(subject, key, type_, value)| {
+        (0u32..=4, key, type_, value).prop_map(|(subject, key, type_, value)| {
             StoreEvent::Metadata {
                 subject,
                 key: key.to_owned(),
@@ -430,35 +430,35 @@ pub(crate) mod strategies {
     /// Any single event, including ones the backend would never send in that order.
     pub(crate) fn event() -> impl Strategy<Value = StoreEvent> {
         prop_oneof![
-            (id(), serial(), props()).prop_map(|(id, serial, props)| StoreEvent::NodeAdded {
+            4 => (id(), serial(), props()).prop_map(|(id, serial, props)| StoreEvent::NodeAdded {
                 id,
                 serial,
                 props
             }),
-            (id(), props(), state()).prop_map(|(id, props, state)| StoreEvent::NodeInfo {
+            1 => (id(), props(), state()).prop_map(|(id, props, state)| StoreEvent::NodeInfo {
                 id,
                 props,
                 state
             }),
-            (id(), audio()).prop_map(|(id, audio)| StoreEvent::NodeAudio { id, audio }),
-            (id(), 0i64..3).prop_map(|(id, process_latency_ns)| StoreEvent::NodeLatency {
+            1 => (id(), audio()).prop_map(|(id, audio)| StoreEvent::NodeAudio { id, audio }),
+            1 => (id(), 0i64..3).prop_map(|(id, process_latency_ns)| StoreEvent::NodeLatency {
                 id,
                 process_latency_ns
             }),
-            id().prop_map(|id| StoreEvent::NodeRemoved { id }),
-            (id(), serial(), props()).prop_map(|(id, serial, props)| StoreEvent::DeviceAdded {
+            4 => id().prop_map(|id| StoreEvent::NodeRemoved { id }),
+            2 => (id(), serial(), props()).prop_map(|(id, serial, props)| StoreEvent::DeviceAdded {
                 id,
                 serial,
                 props
             }),
-            (id(), props()).prop_map(|(id, props)| StoreEvent::DeviceInfo { id, props }),
-            (id(), profiles())
+            1 => (id(), props()).prop_map(|(id, props)| StoreEvent::DeviceInfo { id, props }),
+            1 => (id(), profiles())
                 .prop_map(|(id, profiles)| StoreEvent::DeviceProfiles { id, profiles }),
-            (id(), 0i32..3).prop_map(|(id, index)| StoreEvent::DeviceProfile { id, index }),
-            (id(), routes()).prop_map(|(id, routes)| StoreEvent::DeviceRoutes { id, routes }),
-            (id(), active()).prop_map(|(id, active)| StoreEvent::DeviceActive { id, active }),
-            id().prop_map(|id| StoreEvent::DeviceRemoved { id }),
-            (
+            1 => (id(), 0i32..3).prop_map(|(id, index)| StoreEvent::DeviceProfile { id, index }),
+            1 => (id(), routes()).prop_map(|(id, routes)| StoreEvent::DeviceRoutes { id, routes }),
+            1 => (id(), active()).prop_map(|(id, active)| StoreEvent::DeviceActive { id, active }),
+            2 => id().prop_map(|id| StoreEvent::DeviceRemoved { id }),
+            2 => (
                 id(),
                 id(),
                 dir(),
@@ -472,8 +472,8 @@ pub(crate) mod strategies {
                     channel,
                     monitor
                 }),
-            id().prop_map(|id| StoreEvent::PortRemoved { id }),
-            (id(), id(), id(), id(), id()).prop_map(
+            2 => id().prop_map(|id| StoreEvent::PortRemoved { id }),
+            2 => (id(), id(), id(), id(), id()).prop_map(
                 |(id, out_node, out_port, in_node, in_port)| StoreEvent::LinkAdded {
                     id,
                     out_node,
@@ -482,9 +482,9 @@ pub(crate) mod strategies {
                     in_port
                 }
             ),
-            id().prop_map(|id| StoreEvent::LinkRemoved { id }),
-            metadata(),
-            Just(StoreEvent::MetadataCleared),
+            2 => id().prop_map(|id| StoreEvent::LinkRemoved { id }),
+            3 => metadata(),
+            1 => Just(StoreEvent::MetadataCleared),
         ]
     }
 

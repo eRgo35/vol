@@ -1,5 +1,7 @@
 //! Messages between the app and the audio backend (`docs/specs/01-architecture.md` §3.1, §4).
 
+pub mod coalesce;
+
 use std::time::Duration;
 
 use crate::model::{
