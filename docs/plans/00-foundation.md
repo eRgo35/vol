@@ -1,12 +1,12 @@
 # M0 — Foundation and refactor
 
-**Status:** Not started · **Size:** M · **Depends on:** — · **Branch:** `m0/foundation` · Index: [`PLAN.md`](../../PLAN.md) · Roadmap: [`ROADMAP.md`](../../ROADMAP.md#m0--foundation-and-refactor)
+**Status:** Done (2026-10-24) · **Size:** M · **Depends on:** — · **Branch:** `m0/foundation` · Index: [`PLAN.md`](../../PLAN.md) · Roadmap: [`ROADMAP.md`](../../ROADMAP.md#m0--foundation-and-refactor)
 
 **Goal.** Turn the template skeleton into the target architecture without any PipeWire code: library + binary split, template leftovers and `legacy.rs` removed, pure key map, dirty-flag draw loop, theme, CLI flags, size guard, tab bar, message/model types, `AudioBackend` trait with a scriptable mock, lints/MSRV/dev-dependencies, dev environment.
 
-## Requirement IDs assigned to this milestone (48)
+## Requirement IDs assigned to this milestone (47)
 
-`VOL-GEN-001`, `VOL-GEN-002`, `VOL-GEN-003`, `VOL-GEN-004`, `VOL-GEN-005`, `VOL-GEN-006`, `VOL-GEN-007`, `VOL-GEN-008`, `VOL-ARCH-001`, `VOL-ARCH-002`, `VOL-ARCH-003`, `VOL-ARCH-004`, `VOL-ARCH-005`, `VOL-ARCH-012`, `VOL-ARCH-033`, `VOL-ARCH-050`, `VOL-ARCH-060`, `VOL-ARCH-062`, `VOL-ARCH-063`, `VOL-ARCH-064`, `VOL-ARCH-065`, `VOL-ARCH-066`, `VOL-VIS-001`, `VOL-VIS-002`, `VOL-VIS-003`, `VOL-VIS-004`, `VOL-VIS-009`, `VOL-VIS-010`, `VOL-KEY-001`, `VOL-KEY-002`, `VOL-KEY-003`, `VOL-KEY-007`, `VOL-KEY-009`, `VOL-KEY-010`, `VOL-PB-011`, `VOL-PB-012`, `VOL-QA-001`, `VOL-QA-002`, `VOL-QA-003`, `VOL-QA-004`, `VOL-QA-005`, `VOL-QA-006`, `VOL-QA-007`, `VOL-QA-009`, `VOL-QA-010`, `VOL-PLAT-001`, `VOL-PLAT-002`, `VOL-PKG-002`
+`VOL-GEN-001`, `VOL-GEN-002`, `VOL-GEN-003`, `VOL-GEN-004`, `VOL-GEN-005`, `VOL-GEN-006`, `VOL-GEN-007`, `VOL-GEN-008`, `VOL-ARCH-001`, `VOL-ARCH-002`, `VOL-ARCH-003`, `VOL-ARCH-004`, `VOL-ARCH-005`, `VOL-ARCH-012`, `VOL-ARCH-033`, `VOL-ARCH-050`, `VOL-ARCH-060`, `VOL-ARCH-062`, `VOL-ARCH-063`, `VOL-ARCH-064`, `VOL-ARCH-065`, `VOL-ARCH-066`, `VOL-VIS-001`, `VOL-VIS-002`, `VOL-VIS-003`, `VOL-VIS-004`, `VOL-VIS-009`, `VOL-VIS-010`, `VOL-KEY-001`, `VOL-KEY-002`, `VOL-KEY-003`, `VOL-KEY-007`, `VOL-KEY-009`, `VOL-KEY-010`, `VOL-PB-011`, `VOL-PB-012`, `VOL-QA-001`, `VOL-QA-002`, `VOL-QA-003`, `VOL-QA-004`, `VOL-QA-005`, `VOL-QA-006`, `VOL-QA-007`, `VOL-QA-009`, `VOL-QA-010`, `VOL-PLAT-001`, `VOL-PLAT-002`
 
 Parts of some requirements are delivered earlier or later than their owner milestone; each task below lists the IDs it touches. Verification: local only (`just check`).
 
@@ -53,7 +53,7 @@ Parts of some requirements are delivered earlier or later than their owner miles
 * **Files:** `flake.nix`, `README.md` (verify only), `CONTRIBUTING.md` (Nix paragraph).
 * **Tests first:** none (docs/env). If Nix is available: `nix develop -c just check`; otherwise record "not run (no nix)" in the commit body.
 * **Done when:** README states Linux-only and lists the packages (already true); flake edits reviewed; `CONTRIBUTING.md` no longer says the shell is incomplete.
-* **Reqs:** VOL-PLAT-001, VOL-PLAT-002, VOL-PKG-002.
+* **Reqs:** VOL-PLAT-001, VOL-PLAT-002, VOL-PKG-002 (partial: shell unverified, moved to M9).
 
 ### M0-T06 Model and message types (data only)
 * **Do:** create the data types of 01 §4–§5 exactly (names/fields normative): `src/model/{mod,ids,props,node,device,port,link,metadata}.rs` (`ObjectId`, `Serial`, `PropMap`, `Node`, `NodeKind`, `NodeState`, `NodeAudio`, `Channel`, `Device`, `Profile`, `RouteInfo`, `ActiveRoute`, `Availability`, `PortDir`, `Port`, `Link`, `Defaults`, `StreamTarget`) and `src/backend/mod.rs` (`BackendEvent`, `DisconnectReason`, `MeterSample`, `StoreEvent`, `Command`, `DefaultKind`, `MeterTarget`, `MeterKind`, `CommandKind`, `BackendError`, `BackendGone`, trait `AudioBackend`, struct `BackendHandle`). Derive `Debug, Clone, PartialEq`; `Eq/Hash/Ord` for id types. `Store` itself is M1. Small pure constructors only: `Availability::from_spa(u32)` (0 unknown, 1 no, 2 yes; other → Unknown), `PortDir::from_prop(&str)` (`"in"`/`"out"`).
@@ -173,22 +173,22 @@ Every ID of this milestone is delivered by at least one task (first listed = mai
 | VOL-QA-010 | M0-T01 |
 | VOL-PLAT-001 | M0-T05 |
 | VOL-PLAT-002 | M0-T05 |
-| VOL-PKG-002 | M0-T05 |
 
 Touched here but owned by another milestone (partial work or verification only):
 
 | ID | Owner | Task(s) |
 |---|---|---|
 | VOL-VIS-007 | M8 | M0-T09 |
+| VOL-PKG-002 | M9 | M0-T05 (flake edits; verification in M9) |
 
 ## Definition of done (M0)
 
-- [ ] `just check` green on `main`; pre-push hook installed and exercised once.
-- [ ] Every ID in the M0 list has status `Implemented` (VOL-GEN-* `n/a`).
-- [ ] `src/legacy.rs`, `counter`, `AppEvent::{Increment,Decrement}`, `String`-returning tab stubs are gone.
-- [ ] `vol --help`, `--version`, unknown-flag exit code 2 verified by hand; `q`, `Ctrl-C`, `kill -TERM` restore the terminal.
-- [ ] Snapshots for 80×24, 40×12 (not too small), 39×12 and 40×11 (too small) committed.
-- [ ] `docs/specs/01-architecture.md` §2 updated; ROADMAP status updated.
+- [x] `just check` green on `main`; pre-push hook installed and exercised once.
+- [x] Every ID in the M0 list has status `Implemented` (VOL-GEN-* `n/a`). VIS-001's meter stop is delivered by M7-T03; VOL-PKG-002 moved to M9.
+- [x] `src/legacy.rs`, `counter`, `AppEvent::{Increment,Decrement}`, `String`-returning tab stubs are gone.
+- [x] `vol --help`, `--version`, unknown-flag exit code 2 verified by hand; `q`, `Ctrl-C`, `kill -TERM` restore the terminal.
+- [x] Snapshots for 80×24, 40×12 (not too small), 39×12 and 40×11 (too small) committed.
+- [x] `docs/specs/01-architecture.md` §2 updated; ROADMAP status updated.
 
 ## Risks
 

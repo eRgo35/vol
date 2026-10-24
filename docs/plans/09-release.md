@@ -4,9 +4,9 @@
 
 **Goal.** README, Cargo metadata, version bump, VERIFY closure, local release gate and the `v0.1.0` tag that triggers `release.yml`.
 
-## Requirement IDs assigned to this milestone (4)
+## Requirement IDs assigned to this milestone (5)
 
-`VOL-PKG-001`, `VOL-PKG-003`, `VOL-QA-008`, `VOL-PLAT-003`
+`VOL-PKG-001`, `VOL-PKG-002`, `VOL-PKG-003`, `VOL-QA-008`, `VOL-PLAT-003`
 
 Documentation, metadata, the last verification sweep and the tag that triggers the only GitHub Actions workflow. Everything up to the tag push is local.
 
@@ -28,6 +28,10 @@ Documentation, metadata, the last verification sweep and the tag that triggers t
 ### M9-T03 VERIFY sweep and compatibility run
 * **Do:** list remaining `VERIFY:` markers (`grep -rn "VERIFY" SPEC.md docs/specs`) — each must be closed (observed fact replaces marker; `SPEC.md` §7 row marked closed) or explicitly waived in §7 with a reason. Run the Debian 12 environment: build (`cargo build --locked`) and MA-02…MA-09 (VF-16); record the minimum PipeWire/WirePlumber versions in VOL-PLAT-003 and README.
 * **Reqs:** VOL-PLAT-003.
+
+### M9-T03b Nix dev shell verification
+* **Do:** on a machine with Nix: `nix develop -c cargo build --locked` and `nix develop -c cargo test --locked --all-features`. The flake has no rustup, so `just msrv` (`cargo +1.88`) cannot run inside it: either pin a 1.88 toolchain in the flake or document `just check` minus `msrv` for Nix users. Moved here from M0-T05 (no Nix on the author machine).
+* **Reqs:** VOL-PKG-002.
 
 ### M9-T04 Full acceptance run
 * **Do:** run MA-01…MA-13 on the author's session (PipeWire 1.6.9) and the Debian environment where applicable; log results in the "Acceptance log" below (date, PipeWire/WirePlumber versions, pass/fail, notes). Failures become fix tasks before the tag. MA-14 = this log shows every VERIFY closed.
@@ -65,6 +69,7 @@ Every ID of this milestone is delivered by at least one task (first listed = mai
 | ID | Task(s) |
 |---|---|
 | VOL-PKG-001 | M9-T01 |
+| VOL-PKG-002 | M9-T03b |
 | VOL-PKG-003 | M9-T02 |
 | VOL-QA-008 | M9-T01 |
 | VOL-PLAT-003 | M9-T03 |
@@ -73,7 +78,7 @@ Every ID of this milestone is delivered by at least one task (first listed = mai
 
 - [ ] `just release-check` green.
 - [ ] Tag `v0.1.0` pushed; release artifact verified (checksum + smoke run).
-- [ ] All 4 M9 IDs `Implemented`; no open `VERIFY` markers without a recorded waiver.
+- [ ] All 5 M9 IDs `Implemented`; no open `VERIFY` markers without a recorded waiver.
 - [ ] Acceptance log complete.
 
 ## Risks

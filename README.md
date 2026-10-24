@@ -50,7 +50,7 @@ Keys are from [docs/specs/07-input-and-keybindings.md](docs/specs/07-input-and-k
 |---|---|---|
 | `q`, `Ctrl-C` | Quit | Implemented |
 | `F1`–`F5` | Select tab | Implemented |
-| `Tab`, `]` / `Shift-Tab`, `[` | Next / previous tab (wraps) | planned |
+| `Tab`, `]` / `Shift-Tab`, `[` | Next / previous tab (wraps) | Implemented |
 | `Alt-1`–`Alt-5` | Select tab (optional) | planned |
 | `j` / `k`, `↓` / `↑` | Next / previous row (clamped) | planned |
 | `g` / `G` | First / last row | planned |
@@ -67,11 +67,11 @@ Keys are from [docs/specs/07-input-and-keybindings.md](docs/specs/07-input-and-k
 | `p`, `Enter` | Open picker (move, port or profile) | planned |
 | `f` / `F` | Next / previous filter | planned |
 | `?` | Help overlay | planned |
-| `Esc` | Close overlay; never quits | planned (currently quits) |
+| `Esc` | Close overlay; never quits | Implemented |
 
 In a popup: `j`/`k` or arrows move, `g`/`G` or `Home`/`End` jump, `1`–`9` select, `Enter`, `l`, `→` or `Space` apply, and `Esc`, `q`, `h` or `←` close.
 
-Command-line flags: `-h`/`--help` and `-V`/`--version` are implemented; an unknown argument prints the usage to stderr and exits with status 2. `--mouse` (opt-in mouse support), `--no-color` and `--no-meters` are accepted but have no effect yet (planned). Planned environment: `NO_COLOR`, `VOL_NO_METERS`, `VOL_LOG`, `PIPEWIRE_REMOTE`.
+Command-line flags: `-h`/`--help` and `-V`/`--version` are implemented; an unknown argument prints the usage to stderr and exits with status 2. `--no-color` and the `NO_COLOR` environment variable (any non-empty value) switch to a monochrome theme. `--mouse` (opt-in mouse support) and `--no-meters` are accepted but have no effect yet (planned). Planned environment: `VOL_NO_METERS`, `VOL_LOG`, `PIPEWIRE_REMOTE`.
 
 ## Documentation
 

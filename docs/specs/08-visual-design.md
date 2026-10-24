@@ -55,8 +55,8 @@ Text columns: `pct` cell = `" "` + `format!("{:>3}%", p)` (`" 72%"`, `"150%"`); 
 
 | ID | Level | Requirement | Status |
 |---|---|---|---|
-| VOL-VIS-001 | MUST | Minimum terminal size is **40 columns × 12 rows**. Below that (either dimension) the app draws only a centered two-line message, no tabs/rows: `Terminal too small` / `need 40x12, have <W>x<H>`; input is restricted per VOL-KEY-010; backend keeps running; meters are stopped (`SetMeters{targets: []}`). | Missing |
-| VOL-VIS-002 | MUST | If the terminal is narrower than the message, the message is truncated to `W` columns, never wrapped, never panics. Zero-size areas never panic (all widgets early-return on empty `Rect`). | Missing |
+| VOL-VIS-001 | MUST | Minimum terminal size is **40 columns × 12 rows**. Below that (either dimension) the app draws only a centered two-line message, no tabs/rows: `Terminal too small` / `need 40x12, have <W>x<H>`; input is restricted per VOL-KEY-010; backend keeps running; meters are stopped (`SetMeters{targets: []}`). | Implemented (meter stop `SetMeters{targets: []}` moved to M7) |
+| VOL-VIS-002 | MUST | If the terminal is narrower than the message, the message is truncated to `W` columns, never wrapped, never panics. Zero-size areas never panic (all widgets early-return on empty `Rect`). | Implemented |
 
 ```
                                   
@@ -178,11 +178,11 @@ Per <https://no-color.org>: if environment variable `NO_COLOR` is **set and non-
 
 | ID | Level | Requirement | Status |
 |---|---|---|---|
-| VOL-VIS-003 | MUST | Screen structure per §1. | Stub (tab bar row + one paragraph) |
-| VOL-VIS-004 | MUST | Tab bar per §2; selected tab bold yellow in color mode. | Stub (bold yellow implemented; `│` divider and overflow handling missing) |
+| VOL-VIS-003 | MUST | Screen structure per §1. | Implemented (filter bar and status line are placeholders until M2) |
+| VOL-VIS-004 | MUST | Tab bar per §2; selected tab bold yellow in color mode. | Implemented |
 | VOL-VIS-005 | MUST | `VolumeBar` per §4 including 100 % tick, over-amp glyph/color, muted and unavailable variants. | Missing (prototype used `LineGauge`, uncompiled) |
 | VOL-VIS-006 | MUST | `PeakMeter` per §5 and VOL-MTR-003. | Missing |
-| VOL-VIS-007 | MUST | Theme roles per §8; `NO_COLOR`/`--no-color` per §9, covered by a test that renders every tab in mono mode and asserts that no cell has `fg`, `bg` ≠ `Color::Reset`. | Missing |
+| VOL-VIS-007 | MUST | Theme roles per §8; `NO_COLOR`/`--no-color` per §9, covered by a test that renders every tab in mono mode and asserts that no cell has `fg`, `bg` ≠ `Color::Reset`. | Stub (theme roles and `NO_COLOR` policy done in M0; render-every-tab mono test in M8) |
 | VOL-VIS-008 | MUST | Disconnected/empty states per §7. | Missing |
-| VOL-VIS-009 | MUST | Rendering is a pure function of `(&App, area, &mut Buffer)`; no widget reads the clock (time is injected via `UiState.now`) so snapshots are deterministic. | Missing |
-| VOL-VIS-010 | SHOULD | No cell outside the area handed to a widget is written (debug-asserted in tests via a guard buffer). | Missing |
+| VOL-VIS-009 | MUST | Rendering is a pure function of `(&App, area, &mut Buffer)`; no widget reads the clock (time is injected via `UiState.now`) so snapshots are deterministic. | Implemented |
+| VOL-VIS-010 | SHOULD | No cell outside the area handed to a widget is written (debug-asserted in tests via a guard buffer). | Implemented (`tests/render.rs::no_cell_written_outside_area`) |

@@ -24,15 +24,17 @@ Status is measured against commit `ce3e5a3` (`HEAD` when this spec was written).
 ```
 src/
   lib.rs             crate root (library `vol`; integration tests and the binary link against it)
-  main.rs            thin binary: CLI flags, tokio runtime, backend spawn, terminal lifecycle
+  main.rs            thin binary: CLI flags, tokio runtime, backend handle (BackendHandle::inert() until M1), terminal lifecycle
   cli.rs             Cli, parse(), USAGE (pure)
   log.rs             optional file logger (VOL_LOG)
   ui_state.rs        UiState, Overlay, Mode, StatusMsg, per-tab ListState, row UI, pending optimistic state
-  app.rs             App { store, ui: UiState, backend: BackendHandle, events }; update(Action)->Effects
+  app.rs             App { running, store (M1), ui: UiState, backend: Box<dyn AudioBackend> (command side), dirty, options };
+                     update(Action) (returns Effects once they exist); run(&mut terminal, &mut EventHandler)
   action.rs          Action enum (user intent), Effect enum (side effects)
   keymap.rs          fn map_key(&UiState, KeyEvent) -> Option<Action>   (pure)
-  event.rs           Event, EventHandler (terminal + tick + backend bridge)
-  ui.rs              top-level layout: tab bar, filter bar, body, status line, overlays
+  event.rs           Event, EventHandler (terminal + tick + backend bridge + SIGTERM/SIGHUP/SIGINT -> Event::Quit)
+  ui.rs              top-level layout: SelectedTab, tab_bar_layout (pure), filter bar, body, too-small screen,
+                     status line (placeholder here until widgets/statusline.rs), overlays
   theme.rs           Theme { color: bool } -> Style helpers (NO_COLOR aware)
   model/
     mod.rs           re-exports
@@ -71,11 +73,11 @@ src/
 
 | ID | Level | Requirement | Status |
 |---|---|---|---|
-| VOL-ARCH-001 | MUST | Crate layout follows §2. `model/` and `backend/coalesce.rs` MUST NOT import `pipewire`, `libspa`, `ratatui`, `crossterm` or `tokio` (pure, unit-testable). Only `backend/pw/**` imports `pipewire`/`libspa`. | Missing |
+| VOL-ARCH-001 | MUST | Crate layout follows §2. `model/` and `backend/coalesce.rs` MUST NOT import `pipewire`, `libspa`, `ratatui`, `crossterm` or `tokio` (pure, unit-testable). Only `backend/pw/**` imports `pipewire`/`libspa`. | Implemented (layering enforced by `tests/layering.rs`; later modules arrive with their milestones) |
 | VOL-ARCH-002 | MUST | `src/legacy.rs` is deleted when the first real tab renders live data. | Implemented (deleted in M0-T04) |
-| VOL-ARCH-003 | MUST | Tab functions render into `Buffer` (widgets), not `String`. The `fn xxx_tab(&App) -> String` signature is removed. | Stub |
+| VOL-ARCH-003 | MUST | Tab functions render into `Buffer` (widgets), not `String`. The `fn xxx_tab(&App) -> String` signature is removed. | Implemented |
 | VOL-ARCH-004 | MUST | `SelectedTab` keeps its current five variants and display strings (stable public names). | Implemented |
-| VOL-ARCH-005 | SHOULD | `main.rs` parses `--help/-h`, `--version/-V`, `--mouse`, `--no-color` by hand (no new dependency). Unknown flag → print usage to stderr, exit 2 **before** entering raw mode. | Missing |
+| VOL-ARCH-005 | SHOULD | `cli.rs` (called first in `main`) parses `--help/-h`, `--version/-V`, `--mouse`, `--no-color`, `--no-meters` by hand (no new dependency). Unknown flag → print usage to stderr, exit 2 **before** entering raw mode. | Implemented |
 
 ## 3. Threading model
 
@@ -97,7 +99,7 @@ src/
 |---|---|---|---|
 | VOL-ARCH-010 | MUST | Exactly one OS thread named `vol-pw` owns **every** PipeWire object (`MainLoop`, `Context`, `Core`, `Registry`, proxies, listeners, meter `Stream`s). They are `!Send`; none crosses threads. | Missing |
 | VOL-ARCH-011 | MUST | App → backend: `pipewire::channel::channel::<Command>()`; the `Receiver` is `attach`ed to the loop of `vol-pw`; the `Sender` (`Clone + Send`) lives in `BackendHandle`. Sending never blocks. | Missing |
-| VOL-ARCH-012 | MUST | Backend → app: `tokio::sync::mpsc::UnboundedSender<BackendEvent>` (non-async `send` is safe from `vol-pw`). A bridge task forwards each item as `Event::Backend(BackendEvent)` into the existing `EventHandler` channel. | Missing |
+| VOL-ARCH-012 | MUST | Backend → app: `tokio::sync::mpsc::UnboundedSender<BackendEvent>` (non-async `send` is safe from `vol-pw`). A bridge task forwards each item as `Event::Backend(BackendEvent)` into the existing `EventHandler` channel. | Implemented (bridge in `event.rs`; mock/inert senders until M1) |
 | VOL-ARCH-013 | MUST | Shutdown: app sends `Command::Shutdown`; `vol-pw` destroys meter streams, drops listeners/proxies/core/context and returns from `MainLoop::run`; app `join`s with a 1 s budget (if exceeded: log, continue exit). No PipeWire object may outlive the process's terminal restore. | Missing |
 | VOL-ARCH-014 | MUST | The tokio side never calls PipeWire FFI. The PipeWire side never touches ratatui/crossterm. | Missing |
 | VOL-ARCH-015 | SHOULD | `pipewire::init()` is called once, on `vol-pw`, before the loop is created. (VERIFY: `pipewire 0.10.1` `pipewire::init()`; loop types are `MainLoopRc/MainLoopBox` and `ContextRc/ContextBox` since 0.9; Q3 decided: upgrade.) | Missing |
@@ -289,7 +291,7 @@ Property sources (observed on PipeWire 1.6.9 + WirePlumber, `pw-dump`):
 | VOL-ARCH-030 | MUST | `vol-pw` appends `StoreEvent`s to a `Batch` and flushes it as one `BackendEvent::Batch` (a) when a 16 ms one-shot timer on the PW loop fires, or (b) immediately when the batch holds ≥ 256 events. The timer is armed by the first event appended to an empty batch. | Missing |
 | VOL-ARCH-031 | MUST | Coalescing inside `Batch` (pure, in `backend/coalesce.rs`): (1) consecutive `NodeAudio` for the same id keep the last; (2) `NodeInfo` same id keep last; (3) `Metadata` same `(subject,key)` keep last; (4) `*Added` followed by `*Removed` for the same id in one batch cancel both; (5) `DeviceRoutes/Profiles/Profile/Active` same id keep last; (6) relative order of the surviving events is preserved. | Missing |
 | VOL-ARCH-032 | MUST | Initial snapshot: after binding registry, `vol-pw` binds each `Node`/`Device`/`Metadata("default")`/`Port`/`Link`, calls `subscribe_params` + `enum_params` as per kind (Node: `Props`, `ProcessLatency`; Device: `EnumProfile`, `Profile`, `EnumRoute`, `Route`), then `core.sync(0)`; `Connected` is emitted on the matching `done` **after** flushing the batch. Param replies that arrive later are normal batch traffic. | Missing |
-| VOL-ARCH-033 | MUST | The app loop: handle **all** pending events, then draw at most once per `Tick` and only if `dirty` (store revision changed, UI state changed, meter changed, resize). Max draw rate 30 Hz (existing `TICK_FPS`). Idle app (no input, no changes) MUST NOT redraw. | Stub (draws on every event) |
+| VOL-ARCH-033 | MUST | The app loop: handle **all** pending events, then draw at most once per `Tick` and only if `dirty` (store revision changed, UI state changed, meter changed, resize). Max draw rate 30 Hz (existing `TICK_FPS`). Idle app (no input, no changes) MUST NOT redraw. | Implemented |
 | VOL-ARCH-034 | MUST | `Meters` messages never go through `Batch`. The app stores only the latest `peak` per `Serial` plus the display value with decay (08 §5). | Missing |
 | VOL-ARCH-035 | MUST | Volume writes from key-repeat are coalesced in the **app**: at most one `SetVolumes` per node per 16 ms; the latest value wins. | Missing |
 | VOL-ARCH-036 | MUST | Optimistic UI: after `SetVolumes`/`SetMute` the `UiState.pending[node]` holds the requested values; rows render pending over store values until (a) the store's value equals pending within `abs(Δp) ≤ 0.5 %` (cubic percent) / equal mute, or (b) 500 ms elapse, whichever first. | Missing |
@@ -312,7 +314,7 @@ Property sources (observed on PipeWire 1.6.9 + WirePlumber, `pw-dump`):
 
 | ID | Level | Requirement | Status |
 |---|---|---|---|
-| VOL-ARCH-050 | MUST | `main` returns `color_eyre::Result<()>`; backend and reducer code use typed errors (`BackendError`), not `eyre`, so tests can match on them. | Stub |
+| VOL-ARCH-050 | MUST | `main` returns `color_eyre::Result<ExitCode>` (exit code 2 for CLI errors); backend and reducer code use typed errors (`BackendError`), not `eyre`, so tests can match on them. | Implemented |
 | VOL-ARCH-051 | MUST | A failed command never panics and never blocks the UI; the app shows `CommandFailed` as a status message (07 §6) for 4 s and logs it. | Missing |
 | VOL-ARCH-052 | MUST | Any panic in `vol-pw` is caught (`catch_unwind` at thread entry), reported as `Disconnected{ConnectionLost}` and the reconnect loop restarts the backend (max 5 restarts in 60 s, then stay disconnected with status "backend crashed"). | Missing |
 | VOL-ARCH-053 | MUST | Malformed pods (unexpected types/lengths) are skipped for that param, with `log::debug`-level text to the log file (§9); the node/device stays visible. | Missing |
@@ -322,10 +324,10 @@ Property sources (observed on PipeWire 1.6.9 + WirePlumber, `pw-dump`):
 
 | ID | Level | Requirement | Status |
 |---|---|---|---|
-| VOL-ARCH-060 | MUST | Order in `main`: parse CLI → `color_eyre::install()` → build backend handle → `ratatui::init()` (raw mode + alternate screen + panic hook that restores the terminal first) → run → `ratatui::restore()` on **every** exit path (including error return of `run`). | Implemented (without backend/CLI) |
+| VOL-ARCH-060 | MUST | Order in `main`: parse CLI → `color_eyre::install()` → build backend handle → `ratatui::init()` (raw mode + alternate screen + panic hook that restores the terminal first) → run → `ratatui::restore()` on **every** exit path (including error return of `run`). | Implemented |
 | VOL-ARCH-061 | MUST | `--mouse` enables `EnableMouseCapture` after init and `DisableMouseCapture` before restore, also on the panic path (custom hook chained before ratatui's). | Missing |
-| VOL-ARCH-062 | MUST | `SIGTERM`, `SIGHUP` (tokio `signal::unix`) trigger the same graceful quit as `q`. `SIGINT` likewise (raw mode normally turns Ctrl-C into a key event; external `kill -INT` still arrives as a signal). | Missing |
-| VOL-ARCH-063 | MUST | Only `KeyEventKind::Press` and `KeyEventKind::Repeat` are dispatched; `Release` ignored. | Missing |
-| VOL-ARCH-064 | MUST | `Event::Resize` marks dirty; layout is recomputed from `frame.area()` each draw (no cached sizes). | Missing |
-| VOL-ARCH-065 | MAY | `Ctrl-Z` suspend is **not** supported in v1 (raw mode delivers it as a key; it is ignored). | Missing |
-| VOL-ARCH-066 | MUST | Template leftovers removed: `App.counter`, `AppEvent::Increment/Decrement`, `←/→` counter handlers, `Esc` = quit. (`Esc` no longer quits; see 07.) | Stub |
+| VOL-ARCH-062 | MUST | `SIGTERM`, `SIGHUP` (tokio `signal::unix`) trigger the same graceful quit as `q`. `SIGINT` likewise (raw mode normally turns Ctrl-C into a key event; external `kill -INT` still arrives as a signal). | Implemented |
+| VOL-ARCH-063 | MUST | Only `KeyEventKind::Press` and `KeyEventKind::Repeat` are dispatched; `Release` ignored. | Implemented |
+| VOL-ARCH-064 | MUST | `Event::Resize` marks dirty; layout is recomputed from `frame.area()` each draw (no cached sizes). | Implemented |
+| VOL-ARCH-065 | MAY | `Ctrl-Z` suspend is **not** supported in v1 (raw mode delivers it as a key; it is ignored). | Implemented |
+| VOL-ARCH-066 | MUST | Template leftovers removed: `App.counter`, `AppEvent::Increment/Decrement`, `←/→` counter handlers, `Esc` = quit. (`Esc` no longer quits; see 07.) | Implemented |

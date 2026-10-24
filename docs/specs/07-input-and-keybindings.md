@@ -171,16 +171,16 @@ Transient message catalogue (exact strings; formatted values in `<>`):
 
 | ID | Level | Requirement | Status |
 |---|---|---|---|
-| VOL-KEY-001 | MUST | `q` and `Ctrl-C` quit when no overlay is open (and `Ctrl-C` always). | Implemented (`q`, `Ctrl-C`; `Esc` also quits today — to be removed) |
+| VOL-KEY-001 | MUST | `q` and `Ctrl-C` quit when no overlay is open (and `Ctrl-C` always). | Implemented |
 | VOL-KEY-002 | MUST | `F1`–`F5` switch tabs. | Implemented |
-| VOL-KEY-003 | MUST | `Tab`/`Shift-Tab`/`[`/`]` cycle tabs with wrap. | Missing |
+| VOL-KEY-003 | MUST | `Tab`/`Shift-Tab`/`[`/`]` cycle tabs with wrap. | Implemented |
 | VOL-KEY-004 | MUST | Row navigation per §2.1 (`j k ↓ ↑ g G`), clamped. | Missing |
 | VOL-KEY-005 | MUST | Volume bindings per §2.2 with steps +5/−5, ±1, ±10, absolute 10–90 %, 100 %, 0 %, 150 %. | Missing |
 | VOL-KEY-006 | MUST | `m`/`Space` mute; `c` lock; `,` `.` channel focus; `d` default; `p`/`Enter` picker; `f`/`F` filter; `?` help. | Missing |
-| VOL-KEY-007 | MUST | `Esc` closes overlays; with none open it only clears the status message and never quits. | Missing (today `Esc` quits) |
+| VOL-KEY-007 | MUST | `Esc` closes overlays; with none open it only clears the status message and never quits. | Implemented |
 | VOL-KEY-008 | MUST | Popup keys per §3; help overlay per §4. | Missing |
-| VOL-KEY-009 | MUST | Only `Press`/`Repeat` are handled; `Release` ignored. | Missing |
-| VOL-KEY-010 | MUST | In `Mode::TooSmall` only `q`/`Ctrl-C` and resize act; all other keys are ignored (no blind writes). | Missing |
+| VOL-KEY-009 | MUST | Only `Press`/`Repeat` are handled; `Release` ignored. | Implemented |
+| VOL-KEY-010 | MUST | In `Mode::TooSmall` only `q`/`Ctrl-C` and resize act; all other keys are ignored (no blind writes). | Implemented |
 | VOL-KEY-011 | MUST | Status line per §6 incl. message catalogue and width handling. | Missing |
 | VOL-KEY-012 | MAY | Mouse per §5, behind `--mouse`. | Missing |
 | VOL-KEY-013 | MAY | `Alt-1`…`Alt-5` tab shortcuts. | Missing |

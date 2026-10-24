@@ -8,16 +8,16 @@ This document is the index, the conventions, the glossary and the open questions
 
 | Doc | Area | ID prefixes | Implemented | Stub | Missing | n/a | Total |
 |---|---|---|---|---|---|---|---|
-| [`01-architecture.md`](docs/specs/01-architecture.md) | Architecture | VOL-ARCH | 2 | 4 | 43 | 0 | 49 |
+| [`01-architecture.md`](docs/specs/01-architecture.md) | Architecture | VOL-ARCH | 14 | 0 | 35 | 0 | 49 |
 | [`02-playback.md`](docs/specs/02-playback.md) | Shared model + Playback | VOL-VM, VOL-ROW, VOL-MTR, VOL-FLT, VOL-PB | 2 | 1 | 39 | 0 | 42 |
 | [`03-recording.md`](docs/specs/03-recording.md) | Recording | VOL-REC | 0 | 1 | 7 | 0 | 8 |
 | [`04-output-devices.md`](docs/specs/04-output-devices.md) | Output Devices | VOL-OUT | 0 | 1 | 11 | 1 | 13 |
 | [`05-input-devices.md`](docs/specs/05-input-devices.md) | Input Devices | VOL-IN | 0 | 1 | 8 | 0 | 9 |
 | [`06-configuration.md`](docs/specs/06-configuration.md) | Configuration | VOL-CFG | 0 | 1 | 8 | 0 | 9 |
-| [`07-input-and-keybindings.md`](docs/specs/07-input-and-keybindings.md) | Input, keys, status line | VOL-KEY | 2 | 1 | 11 | 0 | 14 |
-| [`08-visual-design.md`](docs/specs/08-visual-design.md) | Visual design | VOL-VIS | 0 | 2 | 8 | 0 | 10 |
-| [`09-testing-and-quality.md`](docs/specs/09-testing-and-quality.md) | Testing, QA, platforms, packaging | VOL-TEST, VOL-QA, VOL-PLAT, VOL-PKG | 2 | 5 | 30 | 0 | 37 |
-| | **Total** | | 8 | 17 | 165 | 1 | 191 |
+| [`07-input-and-keybindings.md`](docs/specs/07-input-and-keybindings.md) | Input, keys, status line | VOL-KEY | 6 | 1 | 7 | 0 | 14 |
+| [`08-visual-design.md`](docs/specs/08-visual-design.md) | Visual design | VOL-VIS | 6 | 1 | 3 | 0 | 10 |
+| [`09-testing-and-quality.md`](docs/specs/09-testing-and-quality.md) | Testing, QA, platforms, packaging | VOL-TEST, VOL-QA, VOL-PLAT, VOL-PKG | 11 | 1 | 25 | 0 | 37 |
+| | **Total** | | 39 | 8 | 143 | 1 | 191 |
 
 Counts exclude the 8 `VOL-GEN-*` rows of §2 (all `n/a`).
 
@@ -157,8 +157,8 @@ Every question carries a **Proposed default** so work can proceed; the defaults 
 
 | # | Question | Proposed default |
 |---|---|---|
-| Q1 | Should `Esc` quit (current template and prototype behavior) or only close overlays? | Esc never quits (VOL-KEY-007); `q`/`Ctrl-C` quit. |
-| Q2 | Digits `1`–`9`,`0` as absolute volume (this spec) vs. direct tab selection (`1`–`5`)? | Volume; tabs via `Tab`/`[`/`]`/`F1`–`F5` (+ optional `Alt-n`). |
+| Q1 | Should `Esc` quit (current template and prototype behavior) or only close overlays? | Decided: Esc never quits (VOL-KEY-007); `q`/`Ctrl-C` quit. 2026-10-24 (M0-T08). |
+| Q2 | Digits `1`–`9`,`0` as absolute volume (this spec) vs. direct tab selection (`1`–`5`)? | Decided: digits are volume; tabs via `Tab`/`[`/`]`/`F1`–`F5` (`Alt-n` not implemented). 2026-10-24 (M0-T08). |
 | Q3 | Stay on `pipewire 0.8.0` (locked; Feb 2024) or upgrade to 0.9.x/0.10.x (loop types renamed to `MainLoopRc/Box`, `ContextRc/Box`; newer SPA bindings)? Any API gaps (VOL-ARCH-016) to be filled through `sys` crates? | Decided: upgrade to `pipewire 0.10.1` (0.8.0 / `libspa 0.8.0` no longer compile against PipeWire 1.6.9), 2026-10-24. VF-01 checks the 0.10.1 API surface; spec names are API-neutral. |
 | Q4 | Which metadata keys/types does the installed WirePlumber actually honor for moving a stream (`target.object` only, `target.node` only, both; `Spa:Id` vs `Spa:String`)? Undocumented in the sources consulted. | Write both as `Spa:Id`; the second write removed if VF-09 shows it unnecessary. |
 | Q5 | Can a capture `pw_stream` target a `Stream/Output/Audio` node to meter a single playback stream? If not, Playback rows have no meter. | Try; degrade to empty meter. |

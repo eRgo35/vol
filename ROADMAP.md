@@ -13,7 +13,7 @@ Last updated: 2026-10-21. Spec: [`SPEC.md`](SPEC.md) and `docs/specs/`. Executio
 
 | Milestone | Title | Size | Depends on | IDs | Plan | Status |
 |---|---|---|---|---|---|---|
-| M0 | Foundation and refactor | M | — | 48 | [`docs/plans/00-foundation.md`](docs/plans/00-foundation.md) | Not started |
+| M0 | Foundation and refactor | M | — | 47 | [`docs/plans/00-foundation.md`](docs/plans/00-foundation.md) | Done |
 | M1 | PipeWire backend and registry mirror | L | M0 | 30 | [`docs/plans/01-backend-store.md`](docs/plans/01-backend-store.md) | Not started |
 | M2 | Playback tab (read-only) | L | M1 | 25 | [`docs/plans/02-playback-readonly.md`](docs/plans/02-playback-readonly.md) | Not started |
 | M3 | Volume and mute writes | M | M2 | 20 | [`docs/plans/03-volume-mute.md`](docs/plans/03-volume-mute.md) | Not started |
@@ -22,7 +22,7 @@ Last updated: 2026-10-21. Spec: [`SPEC.md`](SPEC.md) and `docs/specs/`. Executio
 | M6 | Configuration tab (card profiles) | S | M5 | 9 | [`docs/plans/06-configuration.md`](docs/plans/06-configuration.md) | Not started |
 | M7 | Peak meters | M | M5 | 18 | [`docs/plans/07-meters.md`](docs/plans/07-meters.md) | Not started |
 | M8 | Polish: help, mouse, NO_COLOR, snapshots | M | M7 | 10 | [`docs/plans/08-polish.md`](docs/plans/08-polish.md) | Not started |
-| M9 | Packaging and release v0.1.0 | S | M8 | 4 | [`docs/plans/09-release.md`](docs/plans/09-release.md) | Not started |
+| M9 | Packaging and release v0.1.0 | S | M8 | 5 | [`docs/plans/09-release.md`](docs/plans/09-release.md) | Not started |
 | M10 | Backlog (deferred, post-0.1) | — | M9 | 4 | [`docs/plans/10-deferred.md`](docs/plans/10-deferred.md) | Not started |
 
 Size: S ≈ 2–3 working days, M ≈ 4–6, L ≈ 8–12 (one developer, tasks ≤ ½ day each). Estimates are planning aids, not commitments.
@@ -31,11 +31,11 @@ Size: S ≈ 2–3 working days, M ≈ 4–6, L ≈ 8–12 (one developer, tasks 
 
 ### M0 — Foundation and refactor
 
-**Status:** Not started · **Size:** M · **Depends on:** — · **Plan:** [`docs/plans/00-foundation.md`](docs/plans/00-foundation.md)
+**Status:** Done (2026-10-24) · **Size:** M · **Depends on:** — · **Plan:** [`docs/plans/00-foundation.md`](docs/plans/00-foundation.md)
 
 **Goal.** Turn the template skeleton into the target architecture without any PipeWire code: library + binary split, template leftovers and `legacy.rs` removed, pure key map, dirty-flag draw loop, theme, CLI flags, size guard, tab bar, message/model types, `AudioBackend` trait with a scriptable mock, lints/MSRV/dev-dependencies, dev environment.
 
-**SPEC requirement IDs (48).** `VOL-GEN-001`, `VOL-GEN-002`, `VOL-GEN-003`, `VOL-GEN-004`, `VOL-GEN-005`, `VOL-GEN-006`, `VOL-GEN-007`, `VOL-GEN-008`, `VOL-ARCH-001`, `VOL-ARCH-002`, `VOL-ARCH-003`, `VOL-ARCH-004`, `VOL-ARCH-005`, `VOL-ARCH-012`, `VOL-ARCH-033`, `VOL-ARCH-050`, `VOL-ARCH-060`, `VOL-ARCH-062`, `VOL-ARCH-063`, `VOL-ARCH-064`, `VOL-ARCH-065`, `VOL-ARCH-066`, `VOL-VIS-001`, `VOL-VIS-002`, `VOL-VIS-003`, `VOL-VIS-004`, `VOL-VIS-009`, `VOL-VIS-010`, `VOL-KEY-001`, `VOL-KEY-002`, `VOL-KEY-003`, `VOL-KEY-007`, `VOL-KEY-009`, `VOL-KEY-010`, `VOL-PB-011`, `VOL-PB-012`, `VOL-QA-001`, `VOL-QA-002`, `VOL-QA-003`, `VOL-QA-004`, `VOL-QA-005`, `VOL-QA-006`, `VOL-QA-007`, `VOL-QA-009`, `VOL-QA-010`, `VOL-PLAT-001`, `VOL-PLAT-002`, `VOL-PKG-002`
+**SPEC requirement IDs (47).** `VOL-GEN-001`, `VOL-GEN-002`, `VOL-GEN-003`, `VOL-GEN-004`, `VOL-GEN-005`, `VOL-GEN-006`, `VOL-GEN-007`, `VOL-GEN-008`, `VOL-ARCH-001`, `VOL-ARCH-002`, `VOL-ARCH-003`, `VOL-ARCH-004`, `VOL-ARCH-005`, `VOL-ARCH-012`, `VOL-ARCH-033`, `VOL-ARCH-050`, `VOL-ARCH-060`, `VOL-ARCH-062`, `VOL-ARCH-063`, `VOL-ARCH-064`, `VOL-ARCH-065`, `VOL-ARCH-066`, `VOL-VIS-001`, `VOL-VIS-002`, `VOL-VIS-003`, `VOL-VIS-004`, `VOL-VIS-009`, `VOL-VIS-010`, `VOL-KEY-001`, `VOL-KEY-002`, `VOL-KEY-003`, `VOL-KEY-007`, `VOL-KEY-009`, `VOL-KEY-010`, `VOL-PB-011`, `VOL-PB-012`, `VOL-QA-001`, `VOL-QA-002`, `VOL-QA-003`, `VOL-QA-004`, `VOL-QA-005`, `VOL-QA-006`, `VOL-QA-007`, `VOL-QA-009`, `VOL-QA-010`, `VOL-PLAT-001`, `VOL-PLAT-002`
 
 **Exit criteria.**
 
@@ -181,7 +181,7 @@ Size: S ≈ 2–3 working days, M ≈ 4–6, L ≈ 8–12 (one developer, tasks 
 
 **Goal.** README, Cargo metadata, version bump, VERIFY closure, local release gate and the `v0.1.0` tag that triggers `release.yml`.
 
-**SPEC requirement IDs (4).** `VOL-PKG-001`, `VOL-PKG-003`, `VOL-QA-008`, `VOL-PLAT-003`
+**SPEC requirement IDs (5).** `VOL-PKG-001`, `VOL-PKG-002`, `VOL-PKG-003`, `VOL-QA-008`, `VOL-PLAT-003`
 
 **Exit criteria.**
 
@@ -227,8 +227,8 @@ Each question has a **Proposed default** so work proceeds; the project owner may
 
 | Q | Proposed default | Decide by | If overruled |
 |---|---|---|---|
-| Q1 `Esc` quits? | **Proposed default:** `Esc` never quits; `q`/`Ctrl-C` quit (VOL-KEY-007). | M0-T08 | Edit VOL-KEY-001/007, `keymap` tests; ARCH-066 note. |
-| Q2 Digits = absolute volume vs tab select | **Proposed default:** digits set volume; tabs via `Tab`/`[`/`]`/`F1`–`F5`, optional `Alt-n` (VOL-KEY-005/013). | M0-T08 | Edit 07 §2.1/§2.2, help text, keymap table; `Alt-n` becomes `n`. |
+| Q1 `Esc` quits? | **Decided (2026-10-24, M0-T08):** `Esc` never quits; `q`/`Ctrl-C` quit (VOL-KEY-007). | M0-T08 | Edit VOL-KEY-001/007, `keymap` tests; ARCH-066 note. |
+| Q2 Digits = absolute volume vs tab select | **Decided (2026-10-24, M0-T08):** digits set volume; tabs via `Tab`/`[`/`]`/`F1`–`F5`, optional `Alt-n` (VOL-KEY-005/013). | M0-T08 | Edit 07 §2.1/§2.2, help text, keymap table; `Alt-n` becomes `n`. |
 | Q3 Stay on `pipewire 0.8.0`? | **Decided: upgrade to `pipewire 0.10.1` (0.8.0 / `libspa 0.8.0` no longer compile against PipeWire 1.6.9), 2026-10-24.** All dependencies bumped to latest together (ratatui 0.30 + crossterm 0.29); MSRV raised to 1.88. M1-T01 verifies the 0.10.1 API surface. | M1-T01 | Re-pin in `Cargo.toml`, adapt VOL-ARCH-015/016 names; MSRV re-check (VOL-QA-003). |
 | Q4 Metadata keys for moving streams | **Proposed default:** write `target.node` and `target.object` as `Spa:Id`; drop the redundant one if VF-09 shows it unnecessary. | M4-T01 | Edit 02 §3.4, backend `pw/metadata.rs`, MA-07. |
 | Q5 Meter a `Stream/Output/Audio` node? | **Proposed default:** try; if refused, Playback rows show empty meters. | M7-T01 | Edit 02 §2.4 table, VOL-PB-009. |

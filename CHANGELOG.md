@@ -15,15 +15,24 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 - Release workflow `.github/workflows/release.yml`: builds an x86_64 Linux tarball and `SHA256SUMS` on `vX.Y.Z` tags.
 - Issue and pull request templates in `.github/`.
 - `CONTRIBUTING.md` with setup, checks, clean-room rule, spec-driven workflow and release process.
+- Command-line flags: `-h`/`--help`, `-V`/`--version`, `--no-color`, and (accepted, not yet active) `--mouse`, `--no-meters`; an unknown argument exits with status 2 before the terminal is touched.
+- Monochrome theme with `--no-color` or `NO_COLOR`.
+- Tab switching with `Tab`/`Shift-Tab`/`[`/`]` (wrapping) and `F1`–`F5`; the tab bar scrolls and shortens titles on narrow terminals.
+- "Terminal too small" screen below 40×12.
+- `SIGTERM`, `SIGHUP` and `SIGINT` quit cleanly and restore the terminal.
+- Nix dev shell with the PipeWire and libclang build dependencies.
 
 ### Changed
 
 - `README.md` replaces the template text with project documentation, planned features, requirements, keys and the clean-room statement.
 - `.github/dependabot.yml` updated.
+- `Esc` no longer quits; it closes overlays or clears the status message.
+- The screen is redrawn only when something changed.
 - Dependencies bumped to latest (ratatui 0.30, crossterm 0.29, pipewire 0.10.1, tokio 1.54, strum 0.28); MSRV raised to 1.88.
 
 ### Removed
 
 - `.github/workflows/ci.yml`. Verification runs locally through `just check`; GitHub Actions only builds tagged releases.
+- The template's counter demo (`←`/`→` keys).
 
 [Unreleased]: https://github.com/eRgo35/vol/commits/main

@@ -83,10 +83,10 @@ Each item is binary. "Compare" items use black-box CLIs only.
 | VOL-QA-001 | MUST | `cargo fmt --all -- --check` clean. | Implemented |
 | VOL-QA-002 | MUST | `cargo clippy --all-targets --all-features --locked -- -D warnings` clean on stable and on MSRV. Additional crate-level lints: `#![deny(unsafe_code)]` (exception: `backend/pw/**` with a `// SAFETY:` comment per unsafe block, only if `libspa`'s safe pod API proves insufficient), `clippy::unwrap_used`/`expect_used` = warn outside tests, `clippy::dbg_macro`/`todo`/`print_stdout`/`print_stderr` = deny (stdout/stderr are the terminal). | Implemented (`[lints]` in `Cargo.toml`) |
 | VOL-QA-003 | MUST | MSRV **1.88** (required by `ratatui 0.30`; raised from 1.85, 2026-10-24); `rust-version = "1.88"` in `Cargo.toml`; `just msrv` runs `cargo +1.88 check --locked --all-features --all-targets`. Verified 2026-10-24: `pipewire 0.10.1`/`libspa 0.10.1`, `proptest 1.12`, `insta 1.49` compile on 1.88. | Implemented |
-| VOL-QA-004 | MUST | `just test` (`cargo test --locked --all-features --all-targets`) runs on the developer's Linux machine with libpipewire headers installed, **without** requiring a PipeWire daemon. L5 tests are `#[ignore]`. | Stub (`just test` exists; no tests yet) |
+| VOL-QA-004 | MUST | `just test` (`cargo test --locked --all-features --all-targets`) runs on the developer's Linux machine with libpipewire headers installed, **without** requiring a PipeWire daemon. L5 tests are `#[ignore]`. | Implemented |
 | VOL-QA-005 | MUST | `RUSTDOCFLAGS="-D warnings" cargo doc --no-deps --all-features --locked` clean. | Implemented |
 | VOL-QA-006 | SHOULD | `cargo deny check` (licenses permissive-only; `pipewire`/`libspa` are MIT). | Implemented (duplicate-version warnings only) |
-| VOL-QA-007 | MUST | No test or code path touches the user's real audio session unless `VOL_TEST_PIPEWIRE=1`. | Missing |
+| VOL-QA-007 | MUST | No test or code path touches the user's real audio session unless `VOL_TEST_PIPEWIRE=1`. | Implemented |
 | VOL-QA-008 | MUST | Public behavior changes update `README.md` (usage, keys, flags, requirements) in the same change; the template README is replaced. | Missing |
 | VOL-QA-009 | MUST | The pre-push hook (`scripts/hooks/pre-push`) runs `just check` and is the enforcement point for VOL-QA-001…006; `git push --no-verify` is reserved for emergencies and MUST NOT be used to land a milestone. | Implemented (hook and installer exist) |
 | VOL-QA-010 | MUST | GitHub Actions runs **only** on tags `v*.*.*` (build + checksum + GitHub Release); no PR/branch verification workflow exists or is proposed. | Implemented (`release.yml`) |
@@ -95,8 +95,8 @@ Each item is binary. "Compare" items use black-box CLIs only.
 
 | ID | Level | Requirement | Status |
 |---|---|---|---|
-| VOL-PLAT-001 | MUST | **Linux only** (x86_64, aarch64). macOS/Windows are unsupported; the crate need not build there and no gate or workflow targets them (`pipewire-sys` fails to build without libpipewire). | Missing |
-| VOL-PLAT-002 | MUST | Build requires `libpipewire-0.3` development files (pkg-config `libpipewire-0.3`), `libspa-0.2`, and libclang (bindgen). | Missing (documented nowhere) |
+| VOL-PLAT-001 | MUST | **Linux only** (x86_64, aarch64). macOS/Windows are unsupported; the crate need not build there and no gate or workflow targets them (`pipewire-sys` fails to build without libpipewire). | Implemented (README, CONTRIBUTING) |
+| VOL-PLAT-002 | MUST | Build requires `libpipewire-0.3` development files (pkg-config `libpipewire-0.3`), `libspa-0.2`, and libclang (bindgen). | Implemented (README build table, `flake.nix`) |
 | VOL-PLAT-003 | MUST | Runtime: a PipeWire daemon (`pipewire`, protocol native socket) and WirePlumber for defaults/moves/profile persistence. Developed and observed against PipeWire **1.6.9** / WirePlumber of the same release. Lower bounds for features used are `[INFERENCE]`: Route/EnumRoute/Profile params and `target.object` metadata ≥ PipeWire 0.3.65 / WirePlumber 0.4.12 — VERIFY by running MA-02…MA-09 on the oldest supported distro (Debian 12: PipeWire 0.3.65). | Missing |
 | VOL-PLAT-004 | MUST | No PulseAudio fallback: if only `pipewire-pulse`/PulseAudio exists without a native PipeWire socket, the app shows the disconnected banner. | Missing |
 | VOL-PLAT-005 | SHOULD | Works inside a terminal multiplexer; requires `TERM` with 8 basic colors + UTF-8. 256/truecolor not required. | Missing |
@@ -114,5 +114,5 @@ Each item is binary. "Compare" items use black-box CLIs only.
 | ID | Level | Requirement | Status |
 |---|---|---|---|
 | VOL-PKG-001 | MUST | `README.md` documents the table above, runtime requirements, flags (`--mouse`, `--no-color`, `--no-meters`), env (`NO_COLOR`, `VOL_LOG`, `PIPEWIRE_REMOTE`), and keys (07). | Missing |
-| VOL-PKG-002 | MUST | `flake.nix` dev shell can `cargo build` and `cargo test` without host packages (§7 Nix row). | Missing |
+| VOL-PKG-002 | MUST | `flake.nix` dev shell can `cargo build` and `cargo test` without host packages (§7 Nix row). | Stub (`flake.nix` shell written but unverified: no Nix on the author machine; `just msrv` needs rustup; moved to M9) |
 | VOL-PKG-003 | SHOULD | `Cargo.toml` gains `rust-version`, `repository`, `readme`, `keywords`, `categories = ["command-line-utilities", "multimedia::audio"]`; `description` stays "A simpler TUI version of pavucontrol". | Missing |
