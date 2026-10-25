@@ -76,13 +76,17 @@ At 12 rows the body is 9 lines (3 locked rows).
 
 | State | Body content |
 |---|---|
-| Disconnected | one centered line `○ PipeWire not available — retrying in <n> s (attempt <k>)` (`NoDaemon`), `○ Connection to PipeWire lost — retrying in <n> s` (`ConnectionLost`), `○ Permission denied connecting to PipeWire` (`PermissionDenied`); the status line shows the socket path; tab bar and filter bar stay; countdown updates each second |
+| Disconnected | one centered line `○ PipeWire not available — retrying in <n> s (attempt <k>)` (`NoDaemon`), `○ Connection to PipeWire lost — retrying in <n> s` (`ConnectionLost`), `○ Permission denied connecting to PipeWire` (`PermissionDenied`); the status line shows `○ disconnected` (07 §6); tab bar and filter bar stay (no count); countdown (seconds until the next attempt, rounded up) updates each second |
 | Connecting (before first result) | `Connecting to PipeWire…` |
 | Connected, no rows | tab-specific empty state text (VOL-PB-004, VOL-REC-005, VOL-OUT-008, VOL-IN-005, VOL-CFG-005) |
 
 ```
  Playback │ Recording │ Output Devices │ Input Devices │ Configuration          
  Show: Applications (f)                                                         
+                                                                                
+                                                                                
+                                                                                
+                                                                                
                                                                                 
                                                                                 
                                                                                 
@@ -100,17 +104,16 @@ At 12 rows the body is 9 lines (3 locked rows).
                                                                                 
                                                                                 
                                                                                 
-                                                                                
-                                                                                
-                                                                                
-                                                                                
- ○ disconnected │ /run/user/1000/pipewire-0                                     
+ ○ disconnected │ h/l vol  m mute  c lock  p move                       │ ? help
 ```
 
-Empty state, connected:
+Empty state, connected (`tests/render.rs::empty_playback_hint_text`):
 ```
  Playback │ Recording │ Output Devices │ Input Devices │ Configuration          
  Show: Applications (f)                                              0 streams  
+                                                                                
+                                                                                
+                                                                                
                                                                                 
                                                                                 
                                                                                 
@@ -129,10 +132,7 @@ Empty state, connected:
                                                                                 
                                                                                 
                                                                                 
-                                                                                
-                                                                                
-                                                                                
- ● PipeWire 1.6.9 │                      out: Starship/Matisse… │ ? help        
+ ● PipeWire 1.6.9 │ h/l vol  m mute  c lock  p move                     │ ? help
 ```
 
 ## 8. Style roles
@@ -183,6 +183,6 @@ Per <https://no-color.org>: if environment variable `NO_COLOR` is **set and non-
 | VOL-VIS-005 | MUST | `VolumeBar` per §4 including 100 % tick, over-amp glyph/color, muted and unavailable variants. | Implemented |
 | VOL-VIS-006 | MUST | `PeakMeter` per §5 and VOL-MTR-003. | Missing |
 | VOL-VIS-007 | MUST | Theme roles per §8; `NO_COLOR`/`--no-color` per §9, covered by a test that renders every tab in mono mode and asserts that no cell has `fg`, `bg` ≠ `Color::Reset`. | Stub (theme roles and `NO_COLOR` policy done in M0; render-every-tab mono test in M8) |
-| VOL-VIS-008 | MUST | Disconnected/empty states per §7. | Missing |
+| VOL-VIS-008 | MUST | Disconnected/empty states per §7. | Implemented |
 | VOL-VIS-009 | MUST | Rendering is a pure function of `(&App, area, &mut Buffer)`; no widget reads the clock (time is injected via `UiState.now`) so snapshots are deterministic. | Implemented |
 | VOL-VIS-010 | SHOULD | No cell outside the area handed to a widget is written (debug-asserted in tests via a guard buffer). | Implemented (`tests/render.rs::no_cell_written_outside_area`) |

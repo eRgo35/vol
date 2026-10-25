@@ -98,7 +98,7 @@ Each item is binary. "Compare" items use black-box CLIs only.
 | VOL-PLAT-001 | MUST | **Linux only** (x86_64, aarch64). macOS/Windows are unsupported; the crate need not build there and no gate or workflow targets them (`pipewire-sys` fails to build without libpipewire). | Implemented (README, CONTRIBUTING) |
 | VOL-PLAT-002 | MUST | Build requires `libpipewire-0.3` development files (pkg-config `libpipewire-0.3`), `libspa-0.2`, and libclang (bindgen). | Implemented (README build table, `flake.nix`) |
 | VOL-PLAT-003 | MUST | Runtime: a PipeWire daemon (`pipewire`, protocol native socket) and WirePlumber for defaults/moves/profile persistence. Developed and observed against PipeWire **1.6.9** / WirePlumber of the same release. Lower bounds for features used are `[INFERENCE]`: Route/EnumRoute/Profile params and `target.object` metadata ≥ PipeWire 0.3.65 / WirePlumber 0.4.12 — VERIFY by running MA-02…MA-09 on the oldest supported distro (Debian 12: PipeWire 0.3.65). | Missing |
-| VOL-PLAT-004 | MUST | No PulseAudio fallback: if only `pipewire-pulse`/PulseAudio exists without a native PipeWire socket, the app shows the disconnected banner. | Missing |
+| VOL-PLAT-004 | MUST | No PulseAudio fallback: if only `pipewire-pulse`/PulseAudio exists without a native PipeWire socket, the app shows the disconnected banner. | Implemented (vol only speaks the native protocol; no socket → `NoDaemon` banner, `tests/render.rs::disconnected_no_daemon_banner_80x24`) |
 | VOL-PLAT-005 | SHOULD | Works inside a terminal multiplexer; requires `TERM` with 8 basic colors + UTF-8. 256/truecolor not required. | Missing |
 
 ## 7. Packaging notes

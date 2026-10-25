@@ -26,6 +26,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 - `just test-live`: opt-in tests against a private, throwaway PipeWire daemon.
 - Row selection with `j`/`k`/`↓`/`↑` and `g`/`G` (clamped); the selection stays on its stream when streams come and go, and the list scrolls only as far as needed to keep the selected row whole.
 - Filter bar on the Playback tab: `Show: Applications (f)` with the stream count (or the selected position, e.g. `2/9`, when not all rows fit); `f`/`F` cycle Applications → All Streams → Virtual Streams for the session.
+- Connection state in the body of every tab: `Connecting to PipeWire…` at startup, and while disconnected `○ PipeWire not available — retrying in <n> s (attempt <k>)`, `○ Connection to PipeWire lost — retrying in <n> s` or `○ Permission denied connecting to PipeWire`, with the countdown updated every second. Tab and filter are kept across a disconnect; open pickers close.
+- Playback empty states: `No playback streams`, or `No streams match this filter (<n> hidden)` with `Press f to change the filter.`
 
 ### Changed
 

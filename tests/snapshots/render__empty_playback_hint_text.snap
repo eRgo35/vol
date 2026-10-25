@@ -1,0 +1,28 @@
+---
+source: tests/render.rs
+expression: framed(&buf)
+---
+" Playback │ Recording │ Output Devices │ Input Devices │ Configuration          "
+" Show: Applications (f)                                              0 streams  "
+"                                                                                "
+"                                                                                "
+"                                                                                "
+"                                                                                "
+"                                                                                "
+"                                                                                "
+"                                                                                "
+"                              No playback streams                               "
+"                   Applications that play audio appear here.                    "
+"                                                                                "
+"                                                                                "
+"                                                                                "
+"                                                                                "
+"                                                                                "
+"                                                                                "
+"                                                                                "
+"                                                                                "
+"                                                                                "
+"                                                                                "
+"                                                                                "
+"                                                                                "
+" ● PipeWire 1.6.9 │ h/l vol  m mute  c lock  p move                     │ ? help"

@@ -1,7 +1,7 @@
-//! Whole-screen rendering (08 §1, §2, §6; VOL-VIS-001…004, 009, 010).
+//! Whole-screen rendering (08 §1, §2, §6, §7; VOL-VIS-001…004, 008…010).
 #![allow(clippy::unwrap_used, clippy::expect_used)]
 
-use std::time::Instant;
+use std::time::{Duration, Instant};
 
 use ratatui::{
     buffer::Buffer,
@@ -11,7 +11,8 @@ use ratatui::{
 use strum::IntoEnumIterator;
 use vol::{
     app::{App, Options},
-    backend::BackendHandle,
+    backend::{BackendHandle, DisconnectReason, StoreEvent},
+    model::{ConnState, ObjectId, Serial},
     ui::{self, SelectedTab},
 };
 
@@ -161,4 +162,124 @@ fn mono_theme_has_no_colors_anywhere() {
             }
         }
     }
+}
+
+fn disconnected(reason: DisconnectReason, retry_in: Duration, attempt: u32) -> App {
+    let mut app = app(true);
+    let retry_at = app.ui.now + retry_in;
+    app.store.set_conn(ConnState::Disconnected {
+        reason,
+        retry_at,
+        attempt,
+    });
+    app
+}
+
+fn connected() -> App {
+    let mut app = app(true);
+    app.store.set_conn(ConnState::Connected {
+        server_version: "1.6.9".to_owned(),
+    });
+    app
+}
+
+/// Line `y` of the screen, without trailing blanks.
+fn line(buf: &Buffer, y: u16) -> String {
+    text(buf)
+        .lines()
+        .nth(usize::from(y))
+        .unwrap()
+        .trim_end()
+        .to_owned()
+}
+
+#[test]
+fn disconnected_no_daemon_banner_80x24() {
+    let app = disconnected(DisconnectReason::NoDaemon, Duration::from_secs(4), 3);
+    let buf = render(&app, 80, 24);
+    // Body = lines 2…22; the banner is at body.y + body.height / 3 (08 §3).
+    assert_eq!(
+        line(&buf, 9),
+        "             ○ PipeWire not available — retrying in 4 s (attempt 3)"
+    );
+    assert_eq!(line(&buf, 1), " Show: Applications (f)", "no count");
+    assert!(line(&buf, 23).starts_with(" ○ disconnected │"));
+    insta::assert_snapshot!(framed(&buf));
+}
+
+#[test]
+fn disconnected_connection_lost_text() {
+    // The countdown rounds up and comes from the injected clock.
+    let app = disconnected(
+        DisconnectReason::ConnectionLost,
+        Duration::from_millis(1200),
+        2,
+    );
+    let screen = text(&render(&app, 80, 24));
+    assert!(
+        screen.contains("○ Connection to PipeWire lost — retrying in 2 s "),
+        "{screen}"
+    );
+    assert!(!screen.contains("attempt"), "{screen}");
+    let mut later = app;
+    later.ui.now += Duration::from_millis(1300);
+    let screen = text(&render(&later, 80, 24));
+    assert!(screen.contains("retrying in 0 s"), "{screen}");
+
+    let denied = disconnected(DisconnectReason::PermissionDenied, Duration::ZERO, 1);
+    let screen = text(&render(&denied, 80, 24));
+    assert!(
+        screen.contains("○ Permission denied connecting to PipeWire"),
+        "{screen}"
+    );
+}
+
+#[test]
+fn connecting_text() {
+    let buf = render(&app(true), 80, 24);
+    assert_eq!(line(&buf, 9).trim_start(), "Connecting to PipeWire…");
+    assert!(line(&buf, 23).starts_with(" ○ connecting… │"));
+}
+
+#[test]
+fn empty_playback_hint_text() {
+    let buf = render(&connected(), 80, 24);
+    assert_eq!(
+        line(&buf, 9),
+        "                              No playback streams"
+    );
+    assert_eq!(
+        line(&buf, 10),
+        "                   Applications that play audio appear here."
+    );
+    assert!(buf[(30, 9)].modifier.contains(Modifier::DIM));
+    assert_eq!(
+        line(&buf, 1).trim_end(),
+        format!(" Show: Applications (f){}0 streams", " ".repeat(46))
+    );
+    insta::assert_snapshot!(framed(&buf));
+}
+
+#[test]
+fn empty_with_hidden_streams_text() {
+    let mut app = connected();
+    for id in [1, 2] {
+        app.store.apply(StoreEvent::NodeAdded {
+            id: ObjectId(id),
+            serial: Serial(u64::from(id)),
+            props: [
+                ("media.class", "Stream/Output/Audio"),
+                ("node.virtual", "true"),
+            ]
+            .iter()
+            .map(|(k, v)| ((*k).to_owned(), (*v).to_owned()))
+            .collect(),
+        });
+    }
+    let screen = text(&render(&app, 80, 24));
+    assert!(
+        screen.contains("No streams match this filter (2 hidden)"),
+        "{screen}"
+    );
+    assert!(screen.contains("Press f to change the filter."), "{screen}");
 }

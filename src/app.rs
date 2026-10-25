@@ -170,10 +170,13 @@ impl App {
     }
 
     /// Advances the injected clock, drops an expired status message (so the
-    /// hint is redrawn) and logs the store summary at most once per second,
-    /// and only when the store changed.
+    /// hint is redrawn), redraws when the disconnected countdown changes
+    /// (08 §7) and logs the store summary at most once per second, and only
+    /// when the store changed.
     fn tick(&mut self, now: Instant) {
+        let banner = ui::banner_text(&self.store.conn, self.ui.now);
         self.ui.now = now;
+        self.dirty |= ui::banner_text(&self.store.conn, now) != banner;
         if self.ui.status.as_ref().is_some_and(|m| now >= m.expires_at) {
             self.ui.status = None;
             self.dirty = true;
@@ -216,6 +219,12 @@ impl App {
                 let conn_changed = self.store.set_conn(conn);
                 let cleared = self.store.clear();
                 self.dirty |= conn_changed | cleared;
+                // Popups are bound to rows, which are gone (VOL-ARCH-044);
+                // the help overlay stays.
+                if matches!(self.ui.overlay, Overlay::Popup(_)) {
+                    self.ui.overlay = Overlay::None;
+                    self.dirty = true;
+                }
             }
             // Meters are drawn from M7 on.
             BackendEvent::Meters(_) => {}
@@ -674,6 +683,55 @@ mod tests {
             }
         );
         assert!(app.needs_draw());
+    }
+
+    #[test]
+    fn disconnected_event_clears_rows_and_keeps_tab_and_filter() {
+        use crate::model::view::StreamFilter;
+        use crate::ui_state::PopupState;
+
+        let (mut app, control) = mocked(empty_connected());
+        batch(&mut app, (1..=2).map(stream_added).collect());
+        key(&mut app, KeyCode::Char('f'));
+        app.ui.overlay = Overlay::Popup(PopupState::default());
+        assert_eq!(app.row_keys().len(), 2);
+        control
+            .push(BackendEvent::Disconnected {
+                reason: DisconnectReason::NoDaemon,
+                retry_in: Some(Duration::from_secs(1)),
+                attempt: 1,
+            })
+            .unwrap();
+        pump(&mut app);
+        assert!(app.row_keys().is_empty());
+        assert_eq!(selected(&app), None);
+        assert_eq!(app.ui.tab, SelectedTab::PlaybackTab);
+        assert_eq!(app.ui.playback_filter, StreamFilter::All);
+        assert_eq!(app.ui.overlay, Overlay::None, "popups close");
+
+        // The help overlay is not bound to rows and stays open.
+        app.ui.overlay = Overlay::Help { scroll: 0 };
+        control
+            .push(BackendEvent::Disconnected {
+                reason: DisconnectReason::NoDaemon,
+                retry_in: Some(Duration::from_secs(2)),
+                attempt: 2,
+            })
+            .unwrap();
+        pump(&mut app);
+        assert_eq!(app.ui.overlay, Overlay::Help { scroll: 0 });
+    }
+
+    #[test]
+    fn disconnected_countdown_redraws_when_seconds_change() {
+        let (mut app, _control) = mocked(disconnected(DisconnectReason::NoDaemon));
+        resize(&mut app, 80, 24);
+        app.dirty = false;
+        let start = app.ui.now;
+        app.on_event(Event::Tick(start + Duration::from_millis(400)));
+        assert!(!app.needs_draw(), "still 1 s");
+        app.on_event(Event::Tick(start + Duration::from_millis(600)));
+        assert!(app.needs_draw(), "1 s → 0 s");
     }
 
     #[test]

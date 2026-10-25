@@ -1,0 +1,28 @@
+---
+source: tests/render.rs
+expression: framed(&buf)
+---
+" Playback │ Recording │ Output Devices │ Input Devices │ Configuration          "
+" Show: Applications (f)                                                         "
+"                                                                                "
+"                                                                                "
+"                                                                                "
+"                                                                                "
+"                                                                                "
+"                                                                                "
+"                                                                                "
+"             ○ PipeWire not available — retrying in 4 s (attempt 3)             "
+"                                                                                "
+"                                                                                "
+"                                                                                "
+"                                                                                "
+"                                                                                "
+"                                                                                "
+"                                                                                "
+"                                                                                "
+"                                                                                "
+"                                                                                "
+"                                                                                "
+"                                                                                "
+"                                                                                "
+" ○ disconnected │ h/l vol  m mute  c lock  p move                       │ ? help"

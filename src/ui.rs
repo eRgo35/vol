@@ -10,12 +10,15 @@ use ratatui::{
     text::{Line, Span},
     widgets::Widget,
 };
+use std::time::Instant;
+
 use strum::{Display, EnumIter, FromRepr, IntoEnumIterator};
 
 use unicode_width::UnicodeWidthStr;
 
 use crate::{
     app::{App, MIN_HEIGHT, MIN_WIDTH},
+    backend::DisconnectReason,
     model::ConnState,
     tabs,
     theme::Theme,
@@ -228,7 +231,10 @@ pub fn render(app: &App, area: Rect, buf: &mut Buffer) {
     .areas(area);
     render_tab_bar(app, &theme, tab_bar, buf);
     render_filter_bar(app, body.height, filter_bar, buf);
-    tabs::render(app.ui.tab, app, body, buf);
+    match banner_text(&app.store.conn, app.ui.now) {
+        Some(banner) => render_body_text(&[(banner.as_str(), Style::new())], body, buf),
+        None => tabs::render(app.ui.tab, app, body, buf),
+    }
     StatusLine {
         conn: &app.store.conn,
         message: app.ui.status.as_ref(),
@@ -238,6 +244,40 @@ pub fn render(app: &App, area: Rect, buf: &mut Buffer) {
         theme: &theme,
     }
     .render(status, buf);
+}
+
+/// The body text while not connected (08 §7, VOL-ARCH-044): `Connecting to
+/// PipeWire…` before the first result, the disconnected banner with the
+/// seconds until `retry_at` (rounded up, from the injected `now`) after.
+/// `None` while connected.
+pub fn banner_text(conn: &ConnState, now: Instant) -> Option<String> {
+    let ConnState::Disconnected {
+        reason,
+        retry_at,
+        attempt,
+    } = conn
+    else {
+        return matches!(conn, ConnState::Connecting).then(|| "Connecting to PipeWire…".to_owned());
+    };
+    let left = retry_at.saturating_duration_since(now);
+    let secs = left.as_secs() + u64::from(left.subsec_nanos() > 0);
+    Some(match reason {
+        DisconnectReason::NoDaemon => {
+            format!("○ PipeWire not available — retrying in {secs} s (attempt {attempt})")
+        }
+        DisconnectReason::ConnectionLost => {
+            format!("○ Connection to PipeWire lost — retrying in {secs} s")
+        }
+        DisconnectReason::PermissionDenied => {
+            "○ Permission denied connecting to PipeWire".to_owned()
+        }
+    })
+}
+
+/// Draws a banner or empty state (08 §3, §7): `lines` horizontally centered,
+/// the first at `area.y + area.height / 3`; cut to the width, never wrapped.
+pub(crate) fn render_body_text(lines: &[(&str, Style)], area: Rect, buf: &mut Buffer) {
+    draw_lines(lines, area, area.y + area.height / 3, buf);
 }
 
 /// Blank columns right of the filter-bar count (as in the 02 §2.3 mockups).
@@ -320,6 +360,12 @@ fn render_too_small(area: Rect, buf: &mut Buffer) {
 pub(crate) fn render_centered(lines: &[(&str, Style)], area: Rect, buf: &mut Buffer) {
     let count = u16::try_from(lines.len()).unwrap_or(u16::MAX);
     let top = area.y + area.height.saturating_sub(count).div_ceil(2);
+    draw_lines(lines, area, top, buf);
+}
+
+/// Draws `lines` horizontally centered in `area` from line `top` on, each cut
+/// to the area width; lines below the area are dropped.
+fn draw_lines(lines: &[(&str, Style)], area: Rect, top: u16, buf: &mut Buffer) {
     for (y, (text, style)) in (top..area.bottom()).zip(lines) {
         let text = truncate_plain(text, usize::from(area.width));
         let len = u16::try_from(text.chars().count()).unwrap_or(area.width);
