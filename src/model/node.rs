@@ -1,5 +1,6 @@
 //! Audio nodes: sinks, sources and streams.
 
+use super::volume::{gain_to_level, level_to_percent};
 use super::{ObjectId, PropMap, Serial};
 
 /// An audio node the app tracks.
@@ -93,6 +94,39 @@ impl NodeState {
             "error" => Some(Self::Error),
             _ => None,
         }
+    }
+}
+
+impl NodeAudio {
+    /// Effective linear gain per channel: `volume × channelVolumes[i]` (VOL-VM-001).
+    pub fn effective_gains(&self) -> Vec<f32> {
+        self.channel_volumes
+            .iter()
+            .map(|g| self.volume * g)
+            .collect()
+    }
+
+    /// Master gain: the largest effective channel gain; `None` without channels (VOL-VM-002).
+    pub fn master_gain(&self) -> Option<f32> {
+        self.effective_gains().into_iter().reduce(f32::max)
+    }
+
+    /// Master level `∛(max_i g_i)`; `None` without channels (VOL-VM-002).
+    pub fn master_level(&self) -> Option<f32> {
+        self.master_gain().map(gain_to_level)
+    }
+
+    /// Displayed master percent; above 150 % it is the true value (VOL-VM-003).
+    pub fn master_percent(&self) -> Option<i32> {
+        self.master_level().map(level_to_percent)
+    }
+
+    /// Displayed percent per channel, in `channelVolumes` order.
+    pub fn channel_percents(&self) -> Vec<i32> {
+        self.effective_gains()
+            .into_iter()
+            .map(|g| level_to_percent(gain_to_level(g)))
+            .collect()
     }
 }
 

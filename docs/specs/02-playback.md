@@ -37,7 +37,7 @@ pub const LEVEL_MAX: f32 = 1.5;          // 150 %
 pub const PERCENT_MAX: i32 = 150;
 pub fn gain_to_level(g: f32) -> f32;     // g.max(0.0).cbrt()
 pub fn level_to_gain(l: f32) -> f32;     // l.clamp(0.0, LEVEL_MAX).powi(3)
-pub fn level_to_percent(l: f32) -> i32;  // (l*100.0 + 0.5).floor() as i32, clamped 0..=150
+pub fn level_to_percent(l: f32) -> i32;  // (l*100.0 + 0.5).floor() as i32, clamped at 0 (no upper clamp, VOL-VM-003)
 pub fn percent_to_level(p: i32) -> f32;  // p.clamp(0,150) as f32 / 100.0
 pub fn gain_to_db(g: f32) -> Option<f32>;// None if g <= 1e-5 (≤ −100 dB) else Some(20.0*g.log10())
 pub fn fmt_db(g: f32) -> String;         // None -> "-inf dB"; |dB|<0.05 -> " 0.0 dB"; else format!("{:+.1} dB")
@@ -45,12 +45,12 @@ pub fn fmt_db(g: f32) -> String;         // None -> "-inf dB"; |dB|<0.05 -> " 0.
 
 | ID | Level | Requirement | Status |
 |---|---|---|---|
-| VOL-VM-001 | MUST | Effective gain of channel *i* is `g_i = Props.volume × Props.channelVolumes[i]`. `Props.softVolumes`, `monitorVolumes`, `softMute`, `monitorMute` are ignored. (VERIFY on a stream whose `volume ≠ 1.0`: set `pw-cli set-param <id> Props '{ volume: 0.5 }'` on a test stream node, confirm audible/graph effect is multiplicative.) | Missing |
-| VOL-VM-002 | MUST | Node master level `ℓ_m = ∛(max_i g_i)`; shown percent `p_m = level_to_percent(ℓ_m)`. Empty `channelVolumes` → no volume (`--`). | Missing |
-| VOL-VM-003 | MUST | Display range 0–150 %. Values above 150 % (set externally; PipeWire allows up to `channelmix.max-volume`, default 10.0 observed) are displayed clamped to 150 % in the bar, and the text shows the true percent (e.g. `210%`) in over-amplified style. vol never **writes** above 150 %. | Missing |
+| VOL-VM-001 | MUST | Effective gain of channel *i* is `g_i = Props.volume × Props.channelVolumes[i]`. `Props.softVolumes`, `monitorVolumes`, `softMute`, `monitorMute` are ignored. (VERIFY on a stream whose `volume ≠ 1.0`: set `pw-cli set-param <id> Props '{ volume: 0.5 }'` on a test stream node, confirm audible/graph effect is multiplicative.) | Implemented |
+| VOL-VM-002 | MUST | Node master level `ℓ_m = ∛(max_i g_i)`; shown percent `p_m = level_to_percent(ℓ_m)`. Empty `channelVolumes` → no volume (`--`). | Implemented |
+| VOL-VM-003 | MUST | Display range 0–150 %. Values above 150 % (set externally; PipeWire allows up to `channelmix.max-volume`, default 10.0 observed) are displayed clamped to 150 % in the bar, and the text shows the true percent (e.g. `210%`) in over-amplified style. vol never **writes** above 150 %. | Stub (model reports the true percent and the conversions cap writes at 150 %; bar clamp in M2-T04, over-amplified text style in M2-T10, writes in M3) |
 | VOL-VM-004 | MUST | Writes: for target levels `ℓ'_i`, `channelVolumes[i] = level_to_gain(ℓ'_i) / volume` when `volume ≥ 1e-6`, else `volume := 1.0` and `channelVolumes[i] = level_to_gain(ℓ'_i)` (carried by `Command::SetVolumes.master = Some(1.0)`). Values are `f32`. | Missing |
-| VOL-VM-005 | MUST | Property (proptest): ∀ p ∈ 0..=150: `level_to_percent(gain_to_level(level_to_gain(percent_to_level(p)))) == p`, with the gain passed through an `f32` round trip. | Missing |
-| VOL-VM-006 | MUST | Property: `fmt_db(level_to_gain(1.0)) == " 0.0 dB"`; `fmt_db(level_to_gain(1.5)) == "+10.6 dB"`; `fmt_db(0.0) == "-inf dB"`; monotonic: `p1<p2 ⇒ db(p1)<db(p2)`. | Missing |
+| VOL-VM-005 | MUST | Property (proptest): ∀ p ∈ 0..=150: `level_to_percent(gain_to_level(level_to_gain(percent_to_level(p)))) == p`, with the gain passed through an `f32` round trip. | Implemented |
+| VOL-VM-006 | MUST | Property: `fmt_db(level_to_gain(1.0)) == " 0.0 dB"`; `fmt_db(level_to_gain(1.5)) == "+10.6 dB"`; `fmt_db(0.0) == "-inf dB"`; monotonic: `p1<p2 ⇒ db(p1)<db(p2)` where `db = gain_to_db(level_to_gain(percent_to_level(p)))`, `None` (−inf) ordered below every finite value; only 0–2 % are `None` (≤ −100 dB). | Implemented |
 | VOL-VM-007 | MUST | Steps (07 §3) operate on **integer percent of the master**: `p' = clamp(p_m + Δ, 0, 150)`. Setting an absolute value (digits, Home, End) sets `p' = value`. A step never changes the value by less than the requested Δ because of rounding (stepping from the displayed integer, not from the float). | Missing |
 | VOL-VM-008 | MUST | **Locked** (default): all channels move together preserving balance: if `ℓ_m > 0`: `ℓ'_i = ℓ_i · (p'/100)/ℓ_m` (ratio in the level domain; the max channel lands exactly on `p'/100`); if `ℓ_m == 0`: `ℓ'_i = p'/100` for all *i*. Each `ℓ'_i` is then clamped to `[0, 1.5]`. | Missing |
 | VOL-VM-009 | MUST | **Unlocked**: only the focused channel *k* changes: `p'_k = clamp(p_k + Δ, 0, 150)`; other channels untouched. | Missing |
