@@ -181,7 +181,7 @@ Transient message catalogue (exact strings; formatted values in `<>`):
 | VOL-KEY-008 | MUST | Popup keys per §3; help overlay per §4. | Missing |
 | VOL-KEY-009 | MUST | Only `Press`/`Repeat` are handled; `Release` ignored. | Implemented |
 | VOL-KEY-010 | MUST | In `Mode::TooSmall` only `q`/`Ctrl-C` and resize act; all other keys are ignored (no blind writes). | Implemented |
-| VOL-KEY-011 | MUST | Status line per §6 incl. message catalogue and width handling. | Missing |
+| VOL-KEY-011 | MUST | Status line per §6 incl. message catalogue and width handling. | Implemented |
 | VOL-KEY-012 | MAY | Mouse per §5, behind `--mouse`. | Missing |
 | VOL-KEY-013 | MAY | `Alt-1`…`Alt-5` tab shortcuts. | Missing |
 | VOL-KEY-014 | MUST | The `←`/`→` demo-counter handlers are replaced by volume handlers (VOL-ARCH-066). | Stub |

@@ -1,8 +1,11 @@
 //! UI-only state: active tab, overlays, status message, injected clock.
 
-use std::time::Instant;
+use std::time::{Duration, Instant};
 
 use crate::ui::SelectedTab;
+
+/// How long a transient status message stays visible (07 §6).
+pub const STATUS_TTL: Duration = Duration::from_secs(4);
 
 /// UI state that is not derived from the PipeWire store.
 #[derive(Debug, Clone)]
@@ -29,6 +32,16 @@ impl UiState {
             status: None,
             now,
         }
+    }
+
+    /// Shows `text` in the status line until [`STATUS_TTL`] after `now`
+    /// (the injected clock), replacing any earlier message.
+    pub fn set_status(&mut self, text: impl Into<String>, kind: StatusKind) {
+        self.status = Some(StatusMsg {
+            text: text.into(),
+            kind,
+            expires_at: self.now + STATUS_TTL,
+        });
     }
 
     /// Input mode derived from the state. `TooSmall` wins over any overlay.

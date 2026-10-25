@@ -16,6 +16,7 @@ use crate::{
     app::{App, MIN_HEIGHT, MIN_WIDTH},
     tabs,
     theme::Theme,
+    widgets::statusline::{StatusLine, default_label},
 };
 
 /// The five tabs, in tab-bar order. Names and display strings are stable
@@ -222,7 +223,15 @@ pub fn render(app: &App, area: Rect, buf: &mut Buffer) {
     render_tab_bar(app, &theme, tab_bar, buf);
     Line::raw(" Show: —").render(filter_bar, buf);
     tabs::render(app.ui.tab, app, body, buf);
-    render_status_line(&theme, status, buf);
+    StatusLine {
+        conn: &app.store.conn,
+        message: app.ui.status.as_ref(),
+        now: app.ui.now,
+        tab: app.ui.tab,
+        default: default_label(&app.store, app.ui.tab),
+        theme: &theme,
+    }
+    .render(status, buf);
 }
 
 fn render_tab_bar(app: &App, theme: &Theme, area: Rect, buf: &mut Buffer) {
@@ -241,25 +250,6 @@ fn render_tab_bar(app: &App, theme: &Theme, area: Rect, buf: &mut Buffer) {
         })
         .collect();
     Line::from(spans).render(area, buf);
-}
-
-/// Placeholder until the status line widget lands: connection state left,
-/// ` │ ? help` in the last 9 columns (07 §6).
-fn render_status_line(theme: &Theme, area: Rect, buf: &mut Buffer) {
-    Line::from(vec![
-        Span::raw(" "),
-        Span::styled("○", theme.status_bad),
-        Span::raw(" connecting…"),
-    ])
-    .render(area, buf);
-    let help = " │ ? help";
-    let help_width = help.chars().count() as u16;
-    let help_area = Rect {
-        x: area.right().saturating_sub(help_width),
-        width: help_width.min(area.width),
-        ..area
-    };
-    Line::raw(help).render(help_area, buf);
 }
 
 /// `Terminal too small` / `need 40x12, have <W>x<H>` (VOL-VIS-001/002).

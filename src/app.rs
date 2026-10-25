@@ -142,10 +142,15 @@ impl App {
         Ok(())
     }
 
-    /// Advances the injected clock and logs the store summary at most once
-    /// per second, and only when the store changed.
+    /// Advances the injected clock, drops an expired status message (so the
+    /// hint is redrawn) and logs the store summary at most once per second,
+    /// and only when the store changed.
     fn tick(&mut self, now: Instant) {
         self.ui.now = now;
+        if self.ui.status.as_ref().is_some_and(|m| now >= m.expires_at) {
+            self.ui.status = None;
+            self.dirty = true;
+        }
         let due = self.last_summary.is_none_or(|(at, revision)| {
             revision != self.store.revision && now.duration_since(at) >= SUMMARY_INTERVAL
         });
@@ -381,6 +386,20 @@ mod tests {
         app.on_event(Event::Tick(later));
         assert_eq!(app.ui.now, later);
         assert!(!app.needs_draw());
+    }
+
+    #[test]
+    fn tick_drops_expired_status_and_marks_dirty() {
+        let mut app = drawn();
+        app.ui
+            .set_status("Channels locked", crate::ui_state::StatusKind::Info);
+        let set_at = app.ui.now;
+        app.on_event(Event::Tick(set_at + Duration::from_millis(3999)));
+        assert!(app.ui.status.is_some());
+        assert!(!app.needs_draw());
+        app.on_event(Event::Tick(set_at + crate::ui_state::STATUS_TTL));
+        assert_eq!(app.ui.status, None);
+        assert!(app.needs_draw());
     }
 
     #[test]
