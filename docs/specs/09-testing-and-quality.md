@@ -24,7 +24,7 @@ pub struct MockControl {
     pub fn commands(&self) -> Vec<Command>;                     // everything the app sent, in order
     pub fn fail_next(&self, err: BackendError);                 // next command yields CommandFailed
 }
-pub fn fixtures::default_system() -> MockScript;                // 2 sinks, 2 sources, 1 card, 3 playback streams, 1 capture stream; stereo; defaults set
+pub fn fixtures::default_system() -> MockScript;                // 2 sinks, 2 sources, 1 card, 4 playback streams (3 applications + 1 virtual), 1 capture stream; stereo except one mono source and the capture stream; defaults set
 pub fn fixtures::empty_connected() -> MockScript;
 pub fn fixtures::disconnected(NoDaemon) -> MockScript;
 ```

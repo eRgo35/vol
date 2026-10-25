@@ -31,8 +31,8 @@ First user-visible milestone. Pure layers first (volume math → views → layou
 * **Reqs:** VOL-PB-001, 002, 003, 008, VOL-MTR-006, VOL-ROW-006.
 
 ### M2-T03 Mock fixtures
-* **Do:** `backend/mock.rs` (or `backend/fixtures.rs` under the same cfg): `fixtures::default_system()` per SPEC 09 §2: 2 sinks (one default, with `device.id`/`card.profile.device`), 2 sources, 1 card with profiles/routes, 3 playback streams (Firefox, Spotify, a virtual loopback), 1 capture stream, links stream→sink, default metadata; values copied from the observed `pw-dump` shapes.
-* **Tests first:** `backend::fixtures::tests::default_system_applies_cleanly` (every event changes the store; counts: 4 nodes + 4 streams …), `…::default_system_has_exactly_one_default_sink`.
+* **Do:** `backend/mock.rs` (or `backend/fixtures.rs` under the same cfg): `fixtures::default_system()` per SPEC 09 §2: 2 sinks (one default, with `device.id`/`card.profile.device`), 2 sources, 1 card with profiles/routes, 4 playback streams (Firefox, Spotify and mpv — the three rows of the 02 §2.3 mockup — plus a virtual loopback), 1 capture stream, links stream→sink, default metadata; values copied from the observed `pw-dump` shapes.
+* **Tests first:** `backend::fixtures::tests::default_system_applies_cleanly` (every event changes the store; counts: 4 device nodes + 5 streams …), `…::default_system_has_exactly_one_default_sink`.
 * **Reqs:** supports VOL-TEST-006/030.
 
 ### M2-T04 `VolumeBar` widget
