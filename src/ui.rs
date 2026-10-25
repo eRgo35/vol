@@ -12,11 +12,17 @@ use ratatui::{
 };
 use strum::{Display, EnumIter, FromRepr, IntoEnumIterator};
 
+use unicode_width::UnicodeWidthStr;
+
 use crate::{
     app::{App, MIN_HEIGHT, MIN_WIDTH},
+    model::ConnState,
     tabs,
     theme::Theme,
-    widgets::statusline::{StatusLine, default_label},
+    widgets::{
+        row_list::{LOCKED_ROW_HEIGHT, count_text},
+        statusline::{StatusLine, default_label},
+    },
 };
 
 /// The five tabs, in tab-bar order. Names and display strings are stable
@@ -221,7 +227,7 @@ pub fn render(app: &App, area: Rect, buf: &mut Buffer) {
     ])
     .areas(area);
     render_tab_bar(app, &theme, tab_bar, buf);
-    Line::raw(" Show: —").render(filter_bar, buf);
+    render_filter_bar(app, body.height, filter_bar, buf);
     tabs::render(app.ui.tab, app, body, buf);
     StatusLine {
         conn: &app.store.conn,
@@ -232,6 +238,47 @@ pub fn render(app: &App, area: Rect, buf: &mut Buffer) {
         theme: &theme,
     }
     .render(status, buf);
+}
+
+/// Blank columns right of the filter-bar count (as in the 02 §2.3 mockups).
+const COUNT_MARGIN: usize = 2;
+
+/// Filter bar texts (VOL-FLT-001, VOL-ROW-003): `Show: <filter> (f)` for
+/// tabs with a filter, and the row count (`3 streams`, or `2/9` when not all
+/// rows fit in `body_height` lines) while connected. Empty when absent; only
+/// Playback has rows and a filter so far.
+pub fn filter_bar_text(app: &App, body_height: u16) -> (String, String) {
+    if app.ui.tab != SelectedTab::PlaybackTab {
+        return (String::new(), String::new());
+    }
+    let left = format!("Show: {} (f)", app.ui.playback_filter.name());
+    let right = match app.store.conn {
+        ConnState::Connected { .. } => {
+            let heights = vec![LOCKED_ROW_HEIGHT; app.row_keys().len()];
+            let info = app.ui.list(app.ui.tab).info(&heights, body_height);
+            count_text(&info, "stream")
+        }
+        _ => String::new(),
+    };
+    (left, right)
+}
+
+/// ` <left>` at the left edge, `<right>` right-aligned before the margin.
+fn render_filter_bar(app: &App, body_height: u16, area: Rect, buf: &mut Buffer) {
+    let (left, right) = filter_bar_text(app, body_height);
+    if !left.is_empty() {
+        Line::raw(format!(" {left}")).render(area, buf);
+    }
+    let width = usize::from(area.width);
+    let right_end = width.saturating_sub(COUNT_MARGIN);
+    let x = right_end.saturating_sub(right.width());
+    buf.set_stringn(
+        area.x + u16::try_from(x).unwrap_or(0),
+        area.y,
+        &right,
+        right_end - x,
+        Style::new(),
+    );
 }
 
 fn render_tab_bar(app: &App, theme: &Theme, area: Rect, buf: &mut Buffer) {
@@ -291,6 +338,90 @@ mod tests {
     use proptest::prelude::*;
 
     use super::*;
+
+    fn app() -> App {
+        let options = crate::app::Options {
+            color: true,
+            mouse: false,
+        };
+        App::new(
+            options,
+            crate::backend::BackendHandle::inert(),
+            std::time::Instant::now(),
+        )
+    }
+
+    fn connected_with_streams(count: u32) -> App {
+        use crate::{
+            backend::{BackendEvent, StoreEvent},
+            event::Event,
+            model::{ObjectId, Serial},
+        };
+        let mut app = app();
+        app.store.set_conn(ConnState::Connected {
+            server_version: "1.6.9".to_owned(),
+        });
+        let streams = (1..=count)
+            .map(|id| StoreEvent::NodeAdded {
+                id: ObjectId(id),
+                serial: Serial(u64::from(id)),
+                props: [("media.class", "Stream/Output/Audio")]
+                    .iter()
+                    .map(|(k, v)| ((*k).to_owned(), (*v).to_owned()))
+                    .collect(),
+            })
+            .collect();
+        app.on_event(Event::Backend(BackendEvent::Batch(streams)));
+        app
+    }
+
+    fn screen_line(app: &App, width: u16, height: u16, y: u16) -> String {
+        let area = Rect::new(0, 0, width, height);
+        let mut buf = Buffer::empty(area);
+        render(app, area, &mut buf);
+        (0..width).map(|x| buf[(x, y)].symbol()).collect()
+    }
+
+    #[test]
+    fn filter_bar_text_playback_default() {
+        let app = app();
+        assert_eq!(
+            filter_bar_text(&app, 21),
+            ("Show: Applications (f)".to_owned(), String::new()),
+            "no count before the first connection"
+        );
+        let line = screen_line(&app, 80, 24, 1);
+        assert_eq!(line.trim_end(), " Show: Applications (f)");
+
+        let mut app = connected_with_streams(0);
+        assert_eq!(filter_bar_text(&app, 21).1, "0 streams");
+        app.update(crate::action::Action::FilterNext);
+        assert_eq!(filter_bar_text(&app, 21).0, "Show: All Streams (f)");
+        app.update(crate::action::Action::FilterNext);
+        assert_eq!(filter_bar_text(&app, 21).0, "Show: Virtual Streams (f)");
+
+        // Tabs without rows yet show an empty filter bar.
+        app.update(crate::action::Action::NextTab);
+        assert_eq!(filter_bar_text(&app, 21), (String::new(), String::new()));
+    }
+
+    #[test]
+    fn filter_bar_right_count_pluralization() {
+        assert_eq!(
+            filter_bar_text(&connected_with_streams(1), 21).1,
+            "1 stream"
+        );
+        let app = connected_with_streams(3);
+        assert_eq!(filter_bar_text(&app, 21).1, "3 streams");
+        let line = screen_line(&app, 80, 24, 1);
+        assert_eq!(
+            line,
+            format!(" Show: Applications (f){}3 streams  ", " ".repeat(46))
+        );
+        // Not all rows fit: position of the selected row.
+        assert_eq!(filter_bar_text(&connected_with_streams(9), 21).1, "1/9");
+        assert!(screen_line(&connected_with_streams(9), 40, 12, 1).ends_with(" 1/9  "));
+    }
 
     fn titles() -> Vec<String> {
         SelectedTab::iter().map(|t| t.to_string()).collect()

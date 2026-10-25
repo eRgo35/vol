@@ -3,7 +3,7 @@ source: tests/render.rs
 expression: framed(&buf)
 ---
 " Playback │ Recording │ Output… ▸       "
-" Show: —                                "
+" Show: Applications (f)                 "
 "                                        "
 "                                        "
 "                                        "

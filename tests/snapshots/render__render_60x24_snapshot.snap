@@ -3,7 +3,7 @@ source: tests/render.rs
 expression: "framed(&render(&app(true), 60, 24))"
 ---
 " Playback │ Recording │ Output Devices │ Input… ▸           "
-" Show: —                                                    "
+" Show: Applications (f)                                     "
 "                                                            "
 "                                                            "
 "                                                            "

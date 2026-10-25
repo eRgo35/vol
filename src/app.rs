@@ -16,8 +16,8 @@ use crate::{
         view::{RowKey, UiPending, playback_rows},
     },
     ui::{self, SelectedTab},
-    ui_state::{Overlay, UiState},
-    widgets::row_list::LOCKED_ROW_HEIGHT,
+    ui_state::{Overlay, StatusKind, UiState},
+    widgets::{row_list::LOCKED_ROW_HEIGHT, statusline::Msg},
 };
 
 /// Minimum terminal width (08 §6).
@@ -114,6 +114,8 @@ impl App {
             Action::RowPrev => self.move_selection(|i| i.saturating_sub(1)),
             Action::RowFirst => self.move_selection(|_| 0),
             Action::RowLast => self.move_selection(|_| usize::MAX),
+            Action::FilterNext => self.cycle_filter(true),
+            Action::FilterPrev => self.cycle_filter(false),
             _ => {}
         }
     }
@@ -253,6 +255,24 @@ impl App {
         list.select_index(&keys, to(list.last_index));
         list.scroll_into_view(&vec![LOCKED_ROW_HEIGHT; keys.len()], self.ui.body_height);
         self.dirty |= *list != before;
+    }
+
+    /// `f`/`F`: cycles the active tab's filter, wrapping (VOL-FLT-001). Tabs
+    /// without filters show `No filters on this tab`.
+    fn cycle_filter(&mut self, forward: bool) {
+        match self.ui.tab {
+            SelectedTab::PlaybackTab => {
+                let filter = self.ui.playback_filter;
+                self.ui.playback_filter = if forward {
+                    filter.next()
+                } else {
+                    filter.prev()
+                };
+                self.sync_list();
+            }
+            _ => self.ui.set_status(Msg::NO_FILTERS, StatusKind::Info),
+        }
+        self.dirty = true;
     }
 }
 
@@ -530,6 +550,57 @@ mod tests {
         assert_eq!(selected(&app), None);
         key(&mut app, KeyCode::Char('j'));
         assert_eq!(selected(&app), None);
+    }
+
+    #[test]
+    fn filter_cycle_wraps_and_marks_dirty() {
+        use crate::model::view::StreamFilter;
+
+        let mut app = drawn();
+        let forward = [
+            StreamFilter::All,
+            StreamFilter::Virtual,
+            StreamFilter::Applications,
+        ];
+        for expected in forward {
+            key(&mut app, KeyCode::Char('f'));
+            assert_eq!(app.ui.playback_filter, expected);
+            assert!(app.needs_draw());
+            app.dirty = false;
+        }
+        key(&mut app, KeyCode::Char('F'));
+        assert_eq!(app.ui.playback_filter, StreamFilter::Virtual);
+        assert!(app.needs_draw());
+
+        // The filter is per tab: switching away and back keeps it; a tab
+        // without filters says so.
+        key(&mut app, KeyCode::F(5));
+        key(&mut app, KeyCode::Char('f'));
+        assert_eq!(
+            app.ui.status.as_ref().map(|m| m.text.as_str()),
+            Some(Msg::NO_FILTERS)
+        );
+        key(&mut app, KeyCode::F(1));
+        assert_eq!(app.ui.playback_filter, StreamFilter::Virtual);
+    }
+
+    #[test]
+    fn filter_change_reselects_rows() {
+        let mut app = app();
+        let mut virtual_stream = stream_added(2);
+        if let StoreEvent::NodeAdded { props, .. } = &mut virtual_stream {
+            props.insert("node.virtual".to_owned(), "true".to_owned());
+        }
+        batch(&mut app, vec![stream_added(1), virtual_stream]);
+        assert_eq!(app.row_keys(), [stream_key(1).unwrap()]);
+        // Applications → All Streams → Virtual Streams.
+        key(&mut app, KeyCode::Char('f'));
+        key(&mut app, KeyCode::Char('G'));
+        assert_eq!(selected(&app), stream_key(2));
+        key(&mut app, KeyCode::Char('f'));
+        assert_eq!(selected(&app), stream_key(2));
+        key(&mut app, KeyCode::Char('f'));
+        assert_eq!(selected(&app), stream_key(1));
     }
 
     #[test]

@@ -1,7 +1,7 @@
 //! Pure key map: `KeyEvent` + UI state → [`Action`] (07 §1–§3).
 //!
-//! Implemented so far: quit, `Esc`, tab switching, row navigation. Volume,
-//! popup and help keys return `None` until their milestones. Digits are reserved for
+//! Implemented so far: quit, `Esc`, tab switching, row navigation, filters.
+//! Volume, popup and help keys return `None` until their milestones. Digits are reserved for
 //! absolute volume and never select tabs (Q2). `Ctrl-Z` is ignored
 //! (VOL-ARCH-065).
 
@@ -51,6 +51,8 @@ pub fn map_key(ui: &UiState, key: KeyEvent) -> Option<Action> {
             KeyCode::Char('k') | KeyCode::Up => Some(Action::RowPrev),
             KeyCode::Char('g') => Some(Action::RowFirst),
             KeyCode::Char('G') => Some(Action::RowLast),
+            KeyCode::Char('f') => Some(Action::FilterNext),
+            KeyCode::Char('F') => Some(Action::FilterPrev),
             _ => None,
         },
     }
@@ -342,6 +344,26 @@ mod tests {
         for ui in [help(), popup(), too_small()] {
             assert_ne!(map_key(&ui, key(KeyCode::Char('j'))), Some(Action::RowNext));
         }
+    }
+
+    #[test]
+    fn f_and_shift_f_cycle_filter() {
+        assert_eq!(
+            map_key(&normal(), key(KeyCode::Char('f'))),
+            Some(Action::FilterNext)
+        );
+        assert_eq!(
+            map_key(&normal(), key(KeyCode::Char('F'))),
+            Some(Action::FilterPrev)
+        );
+        assert_eq!(
+            map_key(&normal(), key_mod(KeyCode::Char('F'), KeyModifiers::SHIFT)),
+            Some(Action::FilterPrev)
+        );
+        for ui in [help(), popup(), too_small()] {
+            assert!(map_key(&ui, key(KeyCode::Char('f'))).is_none());
+        }
+        assert!(map_key(&normal(), ctrl('f')).is_none());
     }
 
     #[test]

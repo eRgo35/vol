@@ -65,7 +65,7 @@ Keys are from [docs/specs/07-input-and-keybindings.md](docs/specs/07-input-and-k
 | `,` / `.` | Previous / next channel (when unlocked) | planned |
 | `d` | Set default (Output and Input tabs) | planned |
 | `p`, `Enter` | Open picker (move, port or profile) | planned |
-| `f` / `F` | Next / previous filter | planned |
+| `f` / `F` | Next / previous filter | Implemented |
 | `?` | Help overlay | planned |
 | `Esc` | Close overlay; never quits | Implemented |
 

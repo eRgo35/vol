@@ -22,7 +22,7 @@ At 80×24: body = rows 2–22 (21 lines = 7 locked rows). Overlays (popup, help)
 | Widget | Implementation | Notes |
 |---|---|---|
 | Tab bar | `ratatui::widgets::Tabs` | existing |
-| Filter bar | `Paragraph` of two spans, right part right-aligned | |
+| Filter bar | `Paragraph` of two spans, right part right-aligned | the count ends 2 columns before the right edge (as in the mockups) and is shown only while connected |
 | `VolumeBar` | custom `impl Widget` writing cells into `Buffer` | `LineGauge`/`Gauge` are **not** used: they map `ratio ∈ [0,1]` linearly with no 100 % tick and a single fill style. The prototype (`legacy.rs`) used `LineGauge`; superseded. |
 | `PeakMeter` | custom `impl Widget` (8 cells) | |
 | `VolumeRow` | composes the above per 02 §2.3 | takes `&RowModel`, `&Theme`, `RowUi` |
@@ -178,7 +178,7 @@ Per <https://no-color.org>: if environment variable `NO_COLOR` is **set and non-
 
 | ID | Level | Requirement | Status |
 |---|---|---|---|
-| VOL-VIS-003 | MUST | Screen structure per §1. | Implemented (filter bar and status line are placeholders until M2) |
+| VOL-VIS-003 | MUST | Screen structure per §1. | Implemented (the filter bar is empty on tabs other than Playback until their milestones) |
 | VOL-VIS-004 | MUST | Tab bar per §2; selected tab bold yellow in color mode. | Implemented |
 | VOL-VIS-005 | MUST | `VolumeBar` per §4 including 100 % tick, over-amp glyph/color, muted and unavailable variants. | Implemented |
 | VOL-VIS-006 | MUST | `PeakMeter` per §5 and VOL-MTR-003. | Missing |

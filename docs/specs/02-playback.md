@@ -125,7 +125,7 @@ Locked 80×24 (Playback):
 Unlocked first row, 40×16 (Narrow tier; first channel focused; tab bar overflow per 08 §2):
 ```
  Playback │ Recording │ Output… ▸       
- Show: Applications (f)     2 strm      
+ Show: Applications (f)      2 streams  
 ▌● Firefox: Playing mus… → Analog Stereo
 ▌ [ ] FL  ━━━━━━━━━━━━────┃────────  72%
 ▌     FR  ━━━━━━━━━━━─────┃────────  64%
@@ -144,7 +144,7 @@ Unlocked first row, 40×16 (Narrow tier; first channel focused; tab bar overflow
 60×10 (Mid tier):
 ```
  Playback │ Recording │ Output Devices │ Input… ▸           
- Show: Applications (f)                          1 stream   
+ Show: Applications (f)                           1 stream  
 ▌● Firefox: Playing music                    → Analog Stereo
 ▌ [ ] ━━━━━━━━━━━━━━━━━━━───────┃─────────────  72% ████····
 ▌    FL 72%  FR 72%  locked                                 
@@ -159,7 +159,7 @@ Unlocked first row, 40×16 (Narrow tier; first channel focused; tab bar overflow
 |---|---|---|---|
 | VOL-ROW-001 | MUST | Row geometry exactly as above for all three tiers; unit-tested via `TestBackend` at 80×24, 60×10, 40×16. | Stub (tiers, column widths and the locked row in `widgets::volume_row`; meter column blank until M7; unlocked layout in M3) |
 | VOL-ROW-002 | MUST | Only rows that fit **entirely** in the body are drawn; the viewport scrolls minimally so the selected row is fully visible (if the selected row alone is taller than the body, it is clipped at the bottom). | Implemented |
-| VOL-ROW-003 | MUST | The filter bar's right side shows `<sel>/<total>` (e.g. `2/9`) when not all rows fit, else `<total> <noun>` (`3 streams`, `1 stream`, `3 devices`, `3 cards`). | Stub (`row_list::count_text` done; shown in the filter bar in M2-T07) |
+| VOL-ROW-003 | MUST | The filter bar's right side shows `<sel>/<total>` (e.g. `2/9`) when not all rows fit, else `<total> <noun>` (`3 streams`, `1 stream`, `3 devices`, `3 cards`). | Implemented |
 | VOL-ROW-004 | MUST | **Row identity** `RowKey`: streams → `Serial`; sinks/sources → `node.name` (String); cards → `device.name`. UiState stores `selected: Option<RowKey>` per tab and the last numeric index. If the selected key disappears the selection moves to `min(last_index, len−1)`; if the list is empty it is `None`. | Stub (stream keys only; sink/source and card keys arrive with their rows in M5/M6) |
 | VOL-ROW-005 | MUST | Per-row UI state (lock on/off, focused channel) is keyed by `RowKey`, defaults to *locked*, channel 0, and is discarded when the key disappears. Not persisted across runs. | Missing |
 | VOL-ROW-006 | MUST | Sort order: streams by `Serial` ascending; devices by `Serial` ascending; cards by `Serial` ascending. Stable across updates (no reordering on volume changes). | Stub (streams only; device and card rows arrive in M5/M6) |
@@ -211,7 +211,7 @@ Format: request `F32` raw audio, rate/channels unconstrained; on `param_changed(
 
 | ID | Level | Requirement | Status |
 |---|---|---|---|
-| VOL-FLT-001 | MUST | Each tab has a `Filter` enum (values in each tab's section). Row 2 of the screen is the **filter bar**: `␠Show: <Filter name> (f)` left, count right. `f` cycles forward, `F` backward, wrapping. The filter is per tab, kept for the session, not persisted. | Missing |
+| VOL-FLT-001 | MUST | Each tab has a `Filter` enum (values in each tab's section). Row 2 of the screen is the **filter bar**: `␠Show: <Filter name> (f)` left, count right. `f` cycles forward, `F` backward, wrapping. The filter is per tab, kept for the session, not persisted. | Stub (filter bar and `f`/`F` done; only Playback has a filter so far, Recording/Output/Input filters arrive in M4/M5) |
 | VOL-FLT-002 | MUST | `ListPopup`: modal, centered, width `min(60, W−4)`, height `min(items+2, H−4)`, title in the top border `┌─ <title> ─…┐`, selected line prefixed `▶ `, current value suffixed `  ✓`, scrolling when items > height−2. `Enter` applies and closes, `Esc`/`q`/`h`/`←` cancels. A popup is bound to a `RowKey` and is closed (status `"<noun> removed"`) if that key disappears. | Missing |
 | VOL-FLT-003 | MUST | While a popup or the help overlay is open, all non-overlay keys are ignored (except `Ctrl-C`, which quits). | Missing |
 
@@ -309,7 +309,7 @@ Backend for `MoveStream` (VERIFY every step on a live system; this is the least-
 | ID | Level | Requirement | Status |
 |---|---|---|---|
 | VOL-PB-001 | MUST | Tab renders `StreamRow`s per §2.3 with fields per §3.2 and target label per §3.3. | Stub (row model `model::view::playback_rows` done; tab still prints "Playback Tab"/counter until M2-T10) |
-| VOL-PB-002 | MUST | Filter bar: `Show: Applications` / `All Streams` / `Virtual Streams` (display names), cycle order `Applications → All Streams → Virtual Streams`. | Stub (`StreamFilter` names and cycle done; filter bar and `f`/`F` in M2-T07) |
+| VOL-PB-002 | MUST | Filter bar: `Show: Applications` / `All Streams` / `Virtual Streams` (display names), cycle order `Applications → All Streams → Virtual Streams`. | Implemented |
 | VOL-PB-003 | MUST | Streams appear/disappear live (registry add/remove) without moving the selection off its `RowKey` (VOL-ROW-004). | Stub (selection follows `RowKey`; live add/remove scenario in M2-T10) |
 | VOL-PB-004 | MUST | Empty state (no rows, filter `All`): centered dim text `No playback streams` / `Applications that play audio appear here.` With a filter hiding ≥ 1 stream: `No streams match this filter (<n> hidden)` / `Press f to change the filter.` | Missing |
 | VOL-PB-005 | MUST | Volume/mute/lock/channel operations per §2.1 on the selected row; the change is visible within one frame (optimistic, VOL-ARCH-036) and confirmed by the store echo. | Missing |

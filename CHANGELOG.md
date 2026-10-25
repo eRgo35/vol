@@ -25,6 +25,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 - Optional file log: `VOL_LOG=error|warn|info|debug` writes `$XDG_STATE_HOME/vol/vol.log`.
 - `just test-live`: opt-in tests against a private, throwaway PipeWire daemon.
 - Row selection with `j`/`k`/`↓`/`↑` and `g`/`G` (clamped); the selection stays on its stream when streams come and go, and the list scrolls only as far as needed to keep the selected row whole.
+- Filter bar on the Playback tab: `Show: Applications (f)` with the stream count (or the selected position, e.g. `2/9`, when not all rows fit); `f`/`F` cycle Applications → All Streams → Virtual Streams for the session.
 
 ### Changed
 
