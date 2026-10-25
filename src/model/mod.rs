@@ -11,6 +11,7 @@ pub mod node;
 pub mod port;
 pub mod props;
 pub mod store;
+pub mod view;
 pub mod volume;
 
 pub use device::{ActiveRoute, Availability, Device, Profile, RouteInfo, is_audio_device};

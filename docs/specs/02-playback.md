@@ -162,7 +162,7 @@ Unlocked first row, 40×16 (Narrow tier; first channel focused; tab bar overflow
 | VOL-ROW-003 | MUST | The filter bar's right side shows `<sel>/<total>` (e.g. `2/9`) when not all rows fit, else `<total> <noun>` (`3 streams`, `1 stream`, `3 devices`, `3 cards`). | Missing |
 | VOL-ROW-004 | MUST | **Row identity** `RowKey`: streams → `Serial`; sinks/sources → `node.name` (String); cards → `device.name`. UiState stores `selected: Option<RowKey>` per tab and the last numeric index. If the selected key disappears the selection moves to `min(last_index, len−1)`; if the list is empty it is `None`. | Missing |
 | VOL-ROW-005 | MUST | Per-row UI state (lock on/off, focused channel) is keyed by `RowKey`, defaults to *locked*, channel 0, and is discarded when the key disappears. Not persisted across runs. | Missing |
-| VOL-ROW-006 | MUST | Sort order: streams by `Serial` ascending; devices by `Serial` ascending; cards by `Serial` ascending. Stable across updates (no reordering on volume changes). | Missing |
+| VOL-ROW-006 | MUST | Sort order: streams by `Serial` ascending; devices by `Serial` ascending; cards by `Serial` ascending. Stable across updates (no reordering on volume changes). | Stub (streams only; device and card rows arrive in M5/M6) |
 | VOL-ROW-007 | MUST | Title truncation uses grapheme-aware width (`unicode-width`, already a transitive dependency of ratatui) and never splits a multi-cell glyph. | Missing |
 
 ### 2.4 Peak meters
@@ -203,7 +203,7 @@ Format: request `F32` raw audio, rate/channels unconstrained; on `param_changed(
 | VOL-MTR-003 | MUST | Meter rendering: 8 cells, 8 sub-steps each (64 steps): `steps = ⌊D·64 + 0.5⌋`; cell *c* (0-based) shows `' ▏▎▍▌▋▊▉█'[clamp(steps − 8c, 0, 8)]`, with fully-empty cells drawn as `·`. Colors in 08 §5. | Missing |
 | VOL-MTR-004 | MUST | `SetMeters` is sent only when the **desired set** changes: the desired set = meter targets of rows currently drawn on the active tab (max 16; extra rows get no meter). Tab switch, scroll, filter change, resize, node add/remove recompute it. Different rows with the same target share one stream. | Missing |
 | VOL-MTR-005 | MUST | Backend diff: start streams for new targets, destroy streams for removed targets (stream `disconnect` + drop) within 200 ms. A target whose node disappears is destroyed silently. | Missing |
-| VOL-MTR-006 | MUST | The app hides vol's own meter streams: nodes with `props["vol.meter"] == "true"` are excluded in `model::view` for every list. | Missing |
+| VOL-MTR-006 | MUST | The app hides vol's own meter streams: nodes with `props["vol.meter"] == "true"` or a `node.name` starting with `vol.meter.` are excluded in `model::view` for every list. | Implemented |
 | VOL-MTR-007 | SHOULD | A meter that has produced no sample for 2 s while its target node is `Running` shows all-empty cells (not a stale level). | Missing |
 | VOL-MTR-008 | MAY | `--no-meters` flag / `VOL_NO_METERS=1` disables all meter streams (battery/CPU). Default: meters on. | Missing |
 
@@ -245,23 +245,26 @@ Popup example (Output Devices, port chooser):
 
 ## 3. Playback tab
 
-Tab title `Playback`; `SelectedTab::PlaybackTab`; F-key `F1`. Rows come from `model::view::playback_rows(&Store, StreamFilter) -> Vec<StreamRow>`.
+Tab title `Playback`; `SelectedTab::PlaybackTab`; F-key `F1`. Rows come from `model::view::playback_rows(&Store, StreamFilter, &UiPending) -> Vec<StreamRow>` (`UiPending`: optimistic values overlaid on `audio`, filled in M3).
 
 ### 3.1 Row population
 
 ```rust
 pub enum StreamFilter { Applications, All, Virtual }   // cycle order; default Applications
+pub enum RowKey { Stream(Serial), /* device/card keys: 04–06 */ }
+pub enum TargetLabel { Device(String), NoDevice }   // see 3.3; pending move added in M4
 pub struct StreamRow {
-    pub key: Serial, pub node: ObjectId,
+    pub key: RowKey, pub node: ObjectId,
     pub title: String, pub media: Option<String>,
     pub running: bool,
-    pub target: TargetLabel,                 // see 3.3
+    pub target: TargetLabel,
     pub audio: Option<NodeAudio>,
-    pub meter: Option<MeterTarget>,
+    pub channel_names: Vec<String>,          // §2.2, one per channelVolumes entry
+    pub meter: Option<MeterTarget>,          // added in M7 (Q5)
 }
 ```
 
-A node is a Playback row iff `kind == PlaybackStream` ∧ `props["vol.meter"] != "true"` ∧ filter matches.
+A node is a Playback row iff `kind == PlaybackStream` ∧ it is not one of vol's meter streams (VOL-MTR-006) ∧ filter matches.
 `is_virtual_stream(node) := props["media.role"] ∈ {"abstract","filter"} ∨ props["node.virtual"]=="true" ∨ props.contains("node.link-group")` (heuristic; VERIFY with a `pw-loopback` and a filter-chain instance that both land in "Virtual").
 `Applications` = not virtual; `Virtual` = virtual; `All` = both.
 
@@ -305,14 +308,14 @@ Backend for `MoveStream` (VERIFY every step on a live system; this is the least-
 
 | ID | Level | Requirement | Status |
 |---|---|---|---|
-| VOL-PB-001 | MUST | Tab renders `StreamRow`s per §2.3 with fields per §3.2 and target label per §3.3. | Stub (prints "Playback Tab"/counter) |
-| VOL-PB-002 | MUST | Filter bar: `Show: Applications` / `All Streams` / `Virtual Streams` (display names), cycle order `Applications → All Streams → Virtual Streams`. | Missing |
-| VOL-PB-003 | MUST | Streams appear/disappear live (registry add/remove) without moving the selection off its `RowKey` (VOL-ROW-004). | Missing |
+| VOL-PB-001 | MUST | Tab renders `StreamRow`s per §2.3 with fields per §3.2 and target label per §3.3. | Stub (row model `model::view::playback_rows` done; tab still prints "Playback Tab"/counter until M2-T10) |
+| VOL-PB-002 | MUST | Filter bar: `Show: Applications` / `All Streams` / `Virtual Streams` (display names), cycle order `Applications → All Streams → Virtual Streams`. | Stub (`StreamFilter` names and cycle done; filter bar and `f`/`F` in M2-T07) |
+| VOL-PB-003 | MUST | Streams appear/disappear live (registry add/remove) without moving the selection off its `RowKey` (VOL-ROW-004). | Stub (rows carry `RowKey`; selection and live scenario in M2-T06/T10) |
 | VOL-PB-004 | MUST | Empty state (no rows, filter `All`): centered dim text `No playback streams` / `Applications that play audio appear here.` With a filter hiding ≥ 1 stream: `No streams match this filter (<n> hidden)` / `Press f to change the filter.` | Missing |
 | VOL-PB-005 | MUST | Volume/mute/lock/channel operations per §2.1 on the selected row; the change is visible within one frame (optimistic, VOL-ARCH-036) and confirmed by the store echo. | Missing |
 | VOL-PB-006 | MUST | Move popup per §3.4; applying while the stream has vanished → `CommandFailed{NodeGone}` → status `"Stream ended"`. | Missing |
 | VOL-PB-007 | MUST | A stream that disappears while its popup is open closes the popup (VOL-FLT-002); one that disappears between key press and command write is a no-op with status `"Stream ended"`. | Missing |
-| VOL-PB-008 | MUST | Corked/idle streams (`NodeState::Idle` or `Suspended`) are shown (marker `○`, title dim) — they are not hidden. | Missing |
+| VOL-PB-008 | MUST | Corked/idle streams (`NodeState::Idle` or `Suspended`) are shown (marker `○`, title dim) — they are not hidden. | Stub (rows kept with `running = false`; rendering in M2-T10) |
 | VOL-PB-009 | SHOULD | Meters only for rows drawn (VOL-MTR-004). | Missing |
 | VOL-PB-010 | MAY | Terminate stream (`x`): **deferred** (not in v1). | Missing |
 | VOL-PB-011 | MUST | Playback tab is the initial tab at startup. | Implemented (`SelectedTab::default()`) |
