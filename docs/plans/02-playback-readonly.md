@@ -1,6 +1,6 @@
 # M2 — Playback tab (read-only)
 
-**Status:** Not started · **Size:** L · **Depends on:** M1 · **Branch:** `m2/playback-readonly` · Index: [`PLAN.md`](../../PLAN.md) · Roadmap: [`ROADMAP.md`](../../ROADMAP.md#m2--playback-tab-read-only)
+**Status:** In progress · **Size:** L · **Depends on:** M1 · **Branch:** `m2/playback-readonly` · Index: [`PLAN.md`](../../PLAN.md) · Roadmap: [`ROADMAP.md`](../../ROADMAP.md#m2--playback-tab-read-only)
 
 **Goal.** First real screen: live Playback rows with title/target/state, volume bar, percent, dB, mute indicator, channel summary, filter, selection, scrolling, status line, disconnected/empty states. No writes.
 

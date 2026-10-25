@@ -13,3 +13,4 @@ pub mod tabs;
 pub mod theme;
 pub mod ui;
 pub mod ui_state;
+pub mod widgets;

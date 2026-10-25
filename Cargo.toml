@@ -16,6 +16,7 @@ color-eyre = "0.6.5"
 strum = { version = "0.28.0", features = ["derive"] }
 pipewire = "0.10.1"
 serde_json = "1.0.154"
+unicode-width = "0.2.2"
 
 [features]
 mock = []
