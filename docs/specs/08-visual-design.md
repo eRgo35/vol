@@ -43,7 +43,7 @@ cell i:  i == t            → '┃' (U+2503)            style tick
          otherwise         → '─' (U+2500)            style bar_empty
 ```
 
-Rules: 100 % at tick: `fill == t` (cells `0..t−1` filled, tick drawn). `p > 100` ⇒ cells right of the tick use `bar_over` — over-amplification is visible by glyph (`═`) **and** color. When `NodeAudio` is `None` the bar area is `G` cells of `─` with `--` centered, all `dim`. Muted rows draw `bar_fill`/`bar_over` as `bar_muted` (color) but keep glyphs, and the whole row gets `Modifier::DIM` except `[M]`.
+Rules: 100 % at tick: `fill == t`, or `t + 1` when `G ≡ 1 (mod 3)` (e.g. G = 40: fill 27, t 26); either way cells `0..t−1` are filled, the tick is drawn and no cell right of it is filled. `p > 100` ⇒ filled cells right of the tick use `bar_over` (the first such cell appears once `fill > t + 1`, e.g. at 105 % for G = 51) — over-amplification is visible by glyph (`═`) **and** color. When `NodeAudio` is `None` the bar area is `G` cells of `─` with `--` centered (starting at column `⌊(G−2)/2⌋`), all `dim`. Muted rows draw `bar_fill`/`bar_over` as `bar_muted` (color) but keep glyphs, and the whole row gets `Modifier::DIM` except `[M]`.
 
 Text columns: `pct` cell = `" "` + `format!("{:>3}%", p)` (`" 72%"`, `"150%"`); values above 999 print `999%`. `dB` cell = `" "` + `fmt_db(g)` right-aligned in 8 cells (`-18.1 dB`, `+10.6 dB`, `-inf dB`); values that would not fit are clamped to `+99.9 dB`.
 
@@ -180,7 +180,7 @@ Per <https://no-color.org>: if environment variable `NO_COLOR` is **set and non-
 |---|---|---|---|
 | VOL-VIS-003 | MUST | Screen structure per §1. | Implemented (filter bar and status line are placeholders until M2) |
 | VOL-VIS-004 | MUST | Tab bar per §2; selected tab bold yellow in color mode. | Implemented |
-| VOL-VIS-005 | MUST | `VolumeBar` per §4 including 100 % tick, over-amp glyph/color, muted and unavailable variants. | Missing (prototype used `LineGauge`, uncompiled) |
+| VOL-VIS-005 | MUST | `VolumeBar` per §4 including 100 % tick, over-amp glyph/color, muted and unavailable variants. | Implemented |
 | VOL-VIS-006 | MUST | `PeakMeter` per §5 and VOL-MTR-003. | Missing |
 | VOL-VIS-007 | MUST | Theme roles per §8; `NO_COLOR`/`--no-color` per §9, covered by a test that renders every tab in mono mode and asserts that no cell has `fg`, `bg` ≠ `Color::Reset`. | Stub (theme roles and `NO_COLOR` policy done in M0; render-every-tab mono test in M8) |
 | VOL-VIS-008 | MUST | Disconnected/empty states per §7. | Missing |
