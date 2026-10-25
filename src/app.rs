@@ -11,9 +11,13 @@ use crate::{
     event::{Event, EventHandler},
     keymap::map_key,
     log,
-    model::{ConnState, Defaults, NodeKind, Store, parse_default_name},
+    model::{
+        ConnState, Defaults, NodeKind, Store, parse_default_name,
+        view::{RowKey, UiPending, playback_rows},
+    },
     ui::{self, SelectedTab},
     ui_state::{Overlay, UiState},
+    widgets::row_list::LOCKED_ROW_HEIGHT,
 };
 
 /// Minimum terminal width (08 §6).
@@ -106,6 +110,10 @@ impl App {
                 }
                 self.dirty = true;
             }
+            Action::RowNext => self.move_selection(|i| i.saturating_add(1)),
+            Action::RowPrev => self.move_selection(|i| i.saturating_sub(1)),
+            Action::RowFirst => self.move_selection(|_| 0),
+            Action::RowLast => self.move_selection(|_| usize::MAX),
             _ => {}
         }
     }
@@ -113,7 +121,24 @@ impl App {
     /// Records a new terminal size (VOL-ARCH-064, VOL-VIS-001).
     pub fn resize(&mut self, width: u16, height: u16) {
         self.ui.terminal_too_small = width < MIN_WIDTH || height < MIN_HEIGHT;
+        // Tab bar, filter bar and status line take one line each (08 §1).
+        self.ui.body_height = height.saturating_sub(3);
+        self.sync_list();
         self.dirty = true;
+    }
+
+    /// Keys of the active tab's rows, in display order. Only Playback has
+    /// rows so far.
+    pub fn row_keys(&self) -> Vec<RowKey> {
+        match self.ui.tab {
+            SelectedTab::PlaybackTab => {
+                playback_rows(&self.store, self.ui.playback_filter, &UiPending)
+                    .into_iter()
+                    .map(|row| row.key)
+                    .collect()
+            }
+            _ => Vec::new(),
+        }
     }
 
     /// Runs until quit: handles every event as it arrives and draws only on
@@ -196,11 +221,38 @@ impl App {
                 self.last_command_failure = Some((cmd, error));
             }
         }
+        self.sync_list();
     }
 
     fn go_tab(&mut self, tab: SelectedTab) {
         self.ui.tab = tab;
+        self.sync_list();
         self.dirty = true;
+    }
+
+    /// Re-finds the active tab's selection in its current rows and scrolls
+    /// it into view (VOL-ROW-002, VOL-ROW-004).
+    fn sync_list(&mut self) {
+        let keys = self.row_keys();
+        let list = self.ui.lists.entry(self.ui.tab).or_default();
+        let before = list.clone();
+        list.reselect(&keys);
+        list.scroll_into_view(&vec![LOCKED_ROW_HEIGHT; keys.len()], self.ui.body_height);
+        self.dirty |= *list != before;
+    }
+
+    /// Moves the selection to `to(current index)`, clamped (VOL-KEY-004).
+    /// No-op on an empty list.
+    fn move_selection(&mut self, to: impl Fn(usize) -> usize) {
+        let keys = self.row_keys();
+        let list = self.ui.lists.entry(self.ui.tab).or_default();
+        if list.selected.is_none() {
+            return;
+        }
+        let before = list.clone();
+        list.select_index(&keys, to(list.last_index));
+        list.scroll_into_view(&vec![LOCKED_ROW_HEIGHT; keys.len()], self.ui.body_height);
+        self.dirty |= *list != before;
     }
 }
 
@@ -260,6 +312,26 @@ mod tests {
 
     fn app() -> App {
         App::new(OPTIONS, BackendHandle::inert(), Instant::now())
+    }
+
+    fn stream_added(id: u32) -> StoreEvent {
+        StoreEvent::NodeAdded {
+            id: ObjectId(id),
+            serial: Serial(u64::from(id) + 100),
+            props: props(&[("media.class", "Stream/Output/Audio"), ("node.name", "s")]),
+        }
+    }
+
+    fn batch(app: &mut App, events: Vec<StoreEvent>) {
+        app.on_event(Event::Backend(BackendEvent::Batch(events)));
+    }
+
+    fn selected(app: &App) -> Option<RowKey> {
+        app.ui.list(app.ui.tab).selected
+    }
+
+    fn stream_key(id: u32) -> Option<RowKey> {
+        Some(RowKey::Stream(Serial(u64::from(id) + 100)))
     }
 
     /// An app whose first frame has been drawn.
@@ -412,6 +484,52 @@ mod tests {
         let mut app = drawn();
         resize(&mut app, 100, 30);
         assert!(app.needs_draw());
+    }
+
+    #[test]
+    fn row_navigation_moves_over_playback_rows_and_clamps() {
+        let mut app = app();
+        // 12 lines: a 9-line body holds three 3-line rows.
+        resize(&mut app, 80, 12);
+        batch(&mut app, (1..=4).map(stream_added).collect());
+        assert_eq!(selected(&app), stream_key(1));
+        for _ in 0..3 {
+            key(&mut app, KeyCode::Char('j'));
+        }
+        assert_eq!(selected(&app), stream_key(4));
+        assert_eq!(app.ui.list(app.ui.tab).offset, 1);
+        app.dirty = false;
+        key(&mut app, KeyCode::Down);
+        assert_eq!(selected(&app), stream_key(4));
+        assert!(!app.needs_draw(), "clamped move changes nothing");
+        key(&mut app, KeyCode::Char('g'));
+        assert_eq!(selected(&app), stream_key(1));
+        assert_eq!(app.ui.list(app.ui.tab).offset, 0);
+        assert!(app.needs_draw());
+        key(&mut app, KeyCode::Up);
+        assert_eq!(selected(&app), stream_key(1));
+        key(&mut app, KeyCode::Char('G'));
+        assert_eq!(selected(&app), stream_key(4));
+        key(&mut app, KeyCode::Char('k'));
+        assert_eq!(selected(&app), stream_key(3));
+    }
+
+    #[test]
+    fn selection_follows_key_when_streams_change() {
+        let mut app = app();
+        batch(&mut app, (1..=3).map(stream_added).collect());
+        key(&mut app, KeyCode::Char('j'));
+        assert_eq!(selected(&app), stream_key(2));
+        // A row above disappears: the selection stays on its stream.
+        batch(&mut app, vec![StoreEvent::NodeRemoved { id: ObjectId(1) }]);
+        assert_eq!(selected(&app), stream_key(2));
+        // The selected stream disappears: the row now at its index is selected.
+        batch(&mut app, vec![StoreEvent::NodeRemoved { id: ObjectId(2) }]);
+        assert_eq!(selected(&app), stream_key(3));
+        batch(&mut app, vec![StoreEvent::NodeRemoved { id: ObjectId(3) }]);
+        assert_eq!(selected(&app), None);
+        key(&mut app, KeyCode::Char('j'));
+        assert_eq!(selected(&app), None);
     }
 
     #[test]

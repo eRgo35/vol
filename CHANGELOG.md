@@ -24,6 +24,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 - PipeWire backend: vol connects at startup and mirrors audio nodes, devices, ports, links and the default sink/source (not shown on screen yet); it keeps running without a daemon and reconnects with backoff (0.5 s up to 10 s).
 - Optional file log: `VOL_LOG=error|warn|info|debug` writes `$XDG_STATE_HOME/vol/vol.log`.
 - `just test-live`: opt-in tests against a private, throwaway PipeWire daemon.
+- Row selection with `j`/`k`/`↓`/`↑` and `g`/`G` (clamped); the selection stays on its stream when streams come and go, and the list scrolls only as far as needed to keep the selected row whole.
 
 ### Changed
 

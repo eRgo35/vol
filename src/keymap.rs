@@ -1,7 +1,7 @@
 //! Pure key map: `KeyEvent` + UI state → [`Action`] (07 §1–§3).
 //!
-//! Implemented so far: quit, `Esc`, tab switching. Row, volume, popup and
-//! help keys return `None` until their milestones. Digits are reserved for
+//! Implemented so far: quit, `Esc`, tab switching, row navigation. Volume,
+//! popup and help keys return `None` until their milestones. Digits are reserved for
 //! absolute volume and never select tabs (Q2). `Ctrl-Z` is ignored
 //! (VOL-ARCH-065).
 
@@ -47,6 +47,10 @@ pub fn map_key(ui: &UiState, key: KeyEvent) -> Option<Action> {
             KeyCode::Tab | KeyCode::Char(']') => Some(Action::NextTab),
             KeyCode::BackTab | KeyCode::Char('[') => Some(Action::PrevTab),
             KeyCode::F(n @ 1..=5) => SelectedTab::from_repr(usize::from(n - 1)).map(Action::GoTab),
+            KeyCode::Char('j') | KeyCode::Down => Some(Action::RowNext),
+            KeyCode::Char('k') | KeyCode::Up => Some(Action::RowPrev),
+            KeyCode::Char('g') => Some(Action::RowFirst),
+            KeyCode::Char('G') => Some(Action::RowLast),
             _ => None,
         },
     }
@@ -310,6 +314,33 @@ mod tests {
                 map_key(&normal(), key(KeyCode::Char(c))),
                 Some(Action::GoTab(_))
             ));
+        }
+    }
+
+    #[test]
+    #[allow(non_snake_case)] // test name from the M2 plan; `G` is the key itself
+    fn j_k_g_G_arrows_row_navigation() {
+        let expected = [
+            (KeyCode::Char('j'), Action::RowNext),
+            (KeyCode::Down, Action::RowNext),
+            (KeyCode::Char('k'), Action::RowPrev),
+            (KeyCode::Up, Action::RowPrev),
+            (KeyCode::Char('g'), Action::RowFirst),
+            (KeyCode::Char('G'), Action::RowLast),
+        ];
+        for (code, action) in expected {
+            assert_eq!(map_key(&normal(), key(code)), Some(action), "{code:?}");
+        }
+        // Terminals report `G` with SHIFT; `Home`/`End` are volume keys, not rows.
+        assert_eq!(
+            map_key(&normal(), key_mod(KeyCode::Char('G'), KeyModifiers::SHIFT)),
+            Some(Action::RowLast)
+        );
+        for code in [KeyCode::Home, KeyCode::End] {
+            assert!(map_key(&normal(), key(code)).is_none(), "{code:?}");
+        }
+        for ui in [help(), popup(), too_small()] {
+            assert_ne!(map_key(&ui, key(KeyCode::Char('j'))), Some(Action::RowNext));
         }
     }
 

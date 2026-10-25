@@ -21,7 +21,7 @@ use crate::{
 
 /// The five tabs, in tab-bar order. Names and display strings are stable
 /// (VOL-ARCH-004).
-#[derive(Default, Debug, Clone, Copy, PartialEq, Eq, Display, FromRepr, EnumIter)]
+#[derive(Default, Debug, Clone, Copy, PartialEq, Eq, Hash, Display, FromRepr, EnumIter)]
 pub enum SelectedTab {
     #[default]
     #[strum(to_string = "Playback")]

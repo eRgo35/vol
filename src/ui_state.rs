@@ -1,8 +1,10 @@
-//! UI-only state: active tab, overlays, status message, injected clock.
+//! UI-only state: active tab, overlays, lists, filters, status message,
+//! injected clock.
 
+use std::collections::HashMap;
 use std::time::{Duration, Instant};
 
-use crate::ui::SelectedTab;
+use crate::{model::view::StreamFilter, ui::SelectedTab, widgets::row_list::ListState};
 
 /// How long a transient status message stays visible (07 §6).
 pub const STATUS_TTL: Duration = Duration::from_secs(4);
@@ -20,6 +22,12 @@ pub struct UiState {
     pub status: Option<StatusMsg>,
     /// Current time, injected so rendering never reads the clock.
     pub now: Instant,
+    /// Selection and viewport per tab (VOL-ROW-004); missing = default.
+    pub lists: HashMap<SelectedTab, ListState>,
+    /// Playback filter; kept for the session, not persisted (VOL-FLT-001).
+    pub playback_filter: StreamFilter,
+    /// Height of the body area in lines (08 §1), from the last resize.
+    pub body_height: u16,
 }
 
 impl UiState {
@@ -31,7 +39,15 @@ impl UiState {
             terminal_too_small: false,
             status: None,
             now,
+            lists: HashMap::new(),
+            playback_filter: StreamFilter::default(),
+            body_height: 0,
         }
+    }
+
+    /// List state of `tab` (default if never touched).
+    pub fn list(&self, tab: SelectedTab) -> ListState {
+        self.lists.get(&tab).cloned().unwrap_or_default()
     }
 
     /// Shows `text` in the status line until [`STATUS_TTL`] after `now`

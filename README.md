@@ -52,8 +52,8 @@ Keys are from [docs/specs/07-input-and-keybindings.md](docs/specs/07-input-and-k
 | `F1`–`F5` | Select tab | Implemented |
 | `Tab`, `]` / `Shift-Tab`, `[` | Next / previous tab (wraps) | Implemented |
 | `Alt-1`–`Alt-5` | Select tab (optional) | planned |
-| `j` / `k`, `↓` / `↑` | Next / previous row (clamped) | planned |
-| `g` / `G` | First / last row | planned |
+| `j` / `k`, `↓` / `↑` | Next / previous row (clamped) | Implemented |
+| `g` / `G` | First / last row | Implemented |
 | `h` / `l`, `←` / `→` | Volume −5 / +5 % | planned |
 | `H` / `L`, `-` / `+` | Volume −1 / +1 % (fine) | planned |
 | `PgDn` / `PgUp` | Volume −10 / +10 % | planned |

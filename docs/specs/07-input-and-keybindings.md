@@ -174,7 +174,7 @@ Transient message catalogue (exact strings; formatted values in `<>`):
 | VOL-KEY-001 | MUST | `q` and `Ctrl-C` quit when no overlay is open (and `Ctrl-C` always). | Implemented |
 | VOL-KEY-002 | MUST | `F1`–`F5` switch tabs. | Implemented |
 | VOL-KEY-003 | MUST | `Tab`/`Shift-Tab`/`[`/`]` cycle tabs with wrap. | Implemented |
-| VOL-KEY-004 | MUST | Row navigation per §2.1 (`j k ↓ ↑ g G`), clamped. | Missing |
+| VOL-KEY-004 | MUST | Row navigation per §2.1 (`j k ↓ ↑ g G`), clamped. | Implemented |
 | VOL-KEY-005 | MUST | Volume bindings per §2.2 with steps +5/−5, ±1, ±10, absolute 10–90 %, 100 %, 0 %, 150 %. | Missing |
 | VOL-KEY-006 | MUST | `m`/`Space` mute; `c` lock; `,` `.` channel focus; `d` default; `p`/`Enter` picker; `f`/`F` filter; `?` help. | Missing |
 | VOL-KEY-007 | MUST | `Esc` closes overlays; with none open it only clears the status message and never quits. | Implemented |
