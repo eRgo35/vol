@@ -157,13 +157,13 @@ Unlocked first row, 40×16 (Narrow tier; first channel focused; tab bar overflow
 
 | ID | Level | Requirement | Status |
 |---|---|---|---|
-| VOL-ROW-001 | MUST | Row geometry exactly as above for all three tiers; unit-tested via `TestBackend` at 80×24, 60×10, 40×16. | Missing |
+| VOL-ROW-001 | MUST | Row geometry exactly as above for all three tiers; unit-tested via `TestBackend` at 80×24, 60×10, 40×16. | Stub (tiers, column widths and the locked row in `widgets::volume_row`; meter column blank until M7; unlocked layout in M3) |
 | VOL-ROW-002 | MUST | Only rows that fit **entirely** in the body are drawn; the viewport scrolls minimally so the selected row is fully visible (if the selected row alone is taller than the body, it is clipped at the bottom). | Missing |
 | VOL-ROW-003 | MUST | The filter bar's right side shows `<sel>/<total>` (e.g. `2/9`) when not all rows fit, else `<total> <noun>` (`3 streams`, `1 stream`, `3 devices`, `3 cards`). | Missing |
 | VOL-ROW-004 | MUST | **Row identity** `RowKey`: streams → `Serial`; sinks/sources → `node.name` (String); cards → `device.name`. UiState stores `selected: Option<RowKey>` per tab and the last numeric index. If the selected key disappears the selection moves to `min(last_index, len−1)`; if the list is empty it is `None`. | Missing |
 | VOL-ROW-005 | MUST | Per-row UI state (lock on/off, focused channel) is keyed by `RowKey`, defaults to *locked*, channel 0, and is discarded when the key disappears. Not persisted across runs. | Missing |
 | VOL-ROW-006 | MUST | Sort order: streams by `Serial` ascending; devices by `Serial` ascending; cards by `Serial` ascending. Stable across updates (no reordering on volume changes). | Stub (streams only; device and card rows arrive in M5/M6) |
-| VOL-ROW-007 | MUST | Title truncation uses grapheme-aware width (`unicode-width`, already a transitive dependency of ratatui) and never splits a multi-cell glyph. | Missing |
+| VOL-ROW-007 | MUST | Title truncation uses grapheme-aware width (`unicode-width`, already a transitive dependency of ratatui) and never splits a multi-cell glyph. | Implemented |
 
 ### 2.4 Peak meters
 

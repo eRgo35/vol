@@ -2,3 +2,4 @@
 
 pub mod statusline;
 pub mod volume_bar;
+pub mod volume_row;

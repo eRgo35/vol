@@ -224,7 +224,7 @@ fn fit(segments: &[(String, Style)], max: usize) -> Vec<Span<'static>> {
 }
 
 /// `text` cut to `max` cells, ending in `…` if anything was cut.
-fn truncate(text: &str, max: usize) -> String {
+pub(super) fn truncate(text: &str, max: usize) -> String {
     if text.width() <= max {
         return text.to_owned();
     }
