@@ -44,7 +44,7 @@ Everything that makes it feel finished: help overlay, mouse, full theme and `NO_
 * **Reqs:** VOL-VIS-007, VOL-TEST-031.
 
 ### M8-T07 Snapshot suite and docs sync
-* **Do:** complete VOL-TEST-030 matrix (sizes 80×24, 60×10, 40×16, 40×12, 39×12, 40×11 × all tabs/states listed in the spec); regenerate or hand-fix the mockups in `docs/specs/*.md` so they match snapshots character for character (VOL-GEN-007); terminal matrix run (VOL-PLAT-005): gnome-terminal, kitty/alacritty, tmux, Linux VT.
+* **Do:** complete VOL-TEST-030 matrix (sizes 80×24, 60×12, 40×16, 40×12, 39×12, 40×11 × all tabs/states listed in the spec); regenerate or hand-fix the mockups in `docs/specs/*.md` so they match snapshots character for character (VOL-GEN-007); terminal matrix run (VOL-PLAT-005): gnome-terminal, kitty/alacritty, tmux, Linux VT.
 * **Reqs:** VOL-TEST-030, VOL-PLAT-005.
 
 ### M8-T08 Manual acceptance and close-out

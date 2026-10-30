@@ -95,18 +95,18 @@ A row is a vertical block. `W` = body width (terminal width). Tier: `Full` W ≥
 
 Bar and meter glyph rules: 08 §4–§5. Bar fill cells: `fill = ⌊G·p/150 + 0.5⌋` (p of the displayed channel/master, clamped 150); 100 % tick column `t = ⌊2G/3⌋` (0-based).
 
-Locked 80×24 (Playback):
+Locked 80×24 (Playback; fixture `default_system`, snapshot `tests/render.rs::playback_80x24_locked_rows`; the meter column stays blank until M7):
 ```
  Playback │ Recording │ Output Devices │ Input Devices │ Configuration          
  Show: Applications (f)                                              3 streams  
 ▌● Firefox: Playing music – Lo-fi beats           → Starship/Matisse HD Audio C…
-▌ [ ] ━━━━━━━━━━━━━━━━━━━━━━━━──────────┃────────────────  72%  -8.6 dB █████···
+▌ [ ] ━━━━━━━━━━━━━━━━━━━━━━━━──────────┃────────────────  72%  -8.6 dB         
 ▌    FL 72%  FR 72%  locked                                                     
  ● Spotify: Song Title                            → Starship/Matisse HD Audio C…
-  [ ] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┃══════────────── 120%  +4.8 dB ███████▎
+  [ ] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┃══════────────── 120%  +4.8 dB         
      FL 120%  FR 120%  locked                                                   
  ○ mpv: video.mkv                                 → CA0132 Sound Core3D Analog …
-  [M] ━━━━━━━━━━━━━━━━━━━───────────────┃────────────────  55% -15.6 dB ········
+  [M] ━━━━━━━━━━━━━━━━━━━───────────────┃────────────────  55% -15.6 dB         
      FL 55%  FR 55%  locked                                                     
                                                                                 
                                                                                 
@@ -120,9 +120,9 @@ Locked 80×24 (Playback):
                                                                                 
                                                                                 
                                                                                 
- ● PipeWire 1.6.9 │ Volume 72%           out: Starship/Matisse… │ ? help        
+ ● PipeWire 1.6.9 │ h/l vol  m mute  c lock  … out: Starship/Matisse H… │ ? help
 ```
-Unlocked first row, 40×16 (Narrow tier; first channel focused; tab bar overflow per 08 §2):
+Unlocked first row, 40×16 (Narrow tier; first channel focused; tab bar overflow per 08 §2; illustrative data — the snapshot arrives with unlocked rows in M3):
 ```
  Playback │ Recording │ Output… ▸       
  Show: Applications (f)      2 streams  
@@ -141,23 +141,44 @@ Unlocked first row, 40×16 (Narrow tier; first channel focused; tab bar overflow
                                         
  ● connected │ Vol 72%        ? help    
 ```
-60×10 (Mid tier):
+Locked 40×16 (Narrow tier; snapshot `tests/render.rs::playback_40x16_narrow_tier`):
+```
+ Playback │ Recording │ Output… ▸       
+ Show: Applications (f)      3 streams  
+▌● Firefox: Playing mus… → Starship/Mat…
+▌ [ ] ━━━━━━━━━━━━━━─────┃─────────  72%
+▌    FL 72%  FR 72%  locked             
+ ● Spotify: Song Title   → Starship/Mat…
+  [ ] ━━━━━━━━━━━━━━━━━━━┃═══────── 120%
+     FL 120%  FR 120%  locked           
+ ○ mpv: video.mkv        → CA0132 Sound…
+  [M] ━━━━━━━━━━━────────┃─────────  55%
+     FL 55%  FR 55%  locked             
+                                        
+                                        
+                                        
+                                        
+ ● PipeWire 1.6.9 │ h/l vol  m… │ ? help
+```
+60×12 (Mid tier; snapshot `tests/render.rs::playback_60x12_mid_tier`; meter column blank until M7):
 ```
  Playback │ Recording │ Output Devices │ Input… ▸           
- Show: Applications (f)                           1 stream  
-▌● Firefox: Playing music                    → Analog Stereo
-▌ [ ] ━━━━━━━━━━━━━━━━━━━───────┃─────────────  72% ████····
+ Show: Applications (f)                          3 streams  
+▌● Firefox: Playing music – Lo-fi be… → Starship/Matisse HD…
+▌ [ ] ━━━━━━━━━━━━━━━━━━━───────┃─────────────  72%         
 ▌    FL 72%  FR 72%  locked                                 
-                                                            
-                                                            
-                                                            
-                                                            
- ● connected │ Volume 72%                      ? help       
+ ● Spotify: Song Title                → Starship/Matisse HD…
+  [ ] ━━━━━━━━━━━━━━━━━━━━━━━━━━┃═════──────── 120%         
+     FL 120%  FR 120%  locked                               
+ ○ mpv: video.mkv                     → CA0132 Sound Core3D…
+  [M] ━━━━━━━━━━━━━━━───────────┃─────────────  55%         
+     FL 55%  FR 55%  locked                                 
+ ● PipeWire 1.6.9 │ h/l v… out: Starship/Matisse H… │ ? help
 ```
 
 | ID | Level | Requirement | Status |
 |---|---|---|---|
-| VOL-ROW-001 | MUST | Row geometry exactly as above for all three tiers; unit-tested via `TestBackend` at 80×24, 60×10, 40×16. | Stub (tiers, column widths and the locked row in `widgets::volume_row`; meter column blank until M7; unlocked layout in M3) |
+| VOL-ROW-001 | MUST | Row geometry exactly as above for all three tiers; unit-tested via `TestBackend` at 80×24, 60×12, 40×16. | Stub (tiers, column widths and the locked row in `widgets::volume_row`; meter column blank until M7; unlocked layout in M3) |
 | VOL-ROW-002 | MUST | Only rows that fit **entirely** in the body are drawn; the viewport scrolls minimally so the selected row is fully visible (if the selected row alone is taller than the body, it is clipped at the bottom). | Implemented |
 | VOL-ROW-003 | MUST | The filter bar's right side shows `<sel>/<total>` (e.g. `2/9`) when not all rows fit, else `<total> <noun>` (`3 streams`, `1 stream`, `3 devices`, `3 cards`). | Implemented |
 | VOL-ROW-004 | MUST | **Row identity** `RowKey`: streams → `Serial`; sinks/sources → `node.name` (String); cards → `device.name`. UiState stores `selected: Option<RowKey>` per tab and the last numeric index. If the selected key disappears the selection moves to `min(last_index, len−1)`; if the list is empty it is `None`. | Stub (stream keys only; sink/source and card keys arrive with their rows in M5/M6) |

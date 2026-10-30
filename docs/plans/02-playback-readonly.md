@@ -67,7 +67,7 @@ First user-visible milestone. Pure layers first (volume math → views → layou
 
 ### M2-T10 Playback tab composition
 * **Do:** `tabs/playback.rs`: rows via `playback_rows` → `row_list`; apply theme; initial tab remains Playback; live add/remove scenario.
-* **Tests first:** `tests/render.rs::playback_80x24_locked_rows` **(snap)** (fixture `default_system`, first row selected; compare to the mockup in 02 §2.3 — update the mockup if the snapshot intentionally differs), `::playback_60x10_mid_tier` **(snap)**, `::playback_40x16_narrow_tier` **(snap, locked rows only; the unlocked first row of the mockup arrives in M3)**, `::over_100_percent_row_style` (cells right of tick are red), `::muted_row_is_dim`, `tests/scenarios.rs::stream_added_and_removed_keeps_selection_by_serial`, `::virtual_stream_hidden_in_applications_filter`.
+* **Tests first:** `tests/render.rs::playback_80x24_locked_rows` **(snap)** (fixture `default_system`, first row selected; compare to the mockup in 02 §2.3 — update the mockup if the snapshot intentionally differs), `::playback_60x12_mid_tier` **(snap)** (60×12: 60×10 is below the 40×12 minimum), `::playback_40x16_narrow_tier` **(snap, locked rows only; the unlocked first row of the mockup arrives in M3)**, `::over_100_percent_row_style` (cells right of tick are red), `::muted_row_is_dim`, `tests/scenarios.rs::stream_added_and_removed_keeps_selection_by_serial`, `::virtual_stream_hidden_in_applications_filter`.
 * **Reqs:** VOL-PB-001, 003, 004, 008.
 
 ### M2-T11 Manual acceptance and close-out

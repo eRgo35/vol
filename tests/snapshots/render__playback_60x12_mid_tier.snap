@@ -1,0 +1,16 @@
+---
+source: tests/render.rs
+expression: "framed(&render(&fixture(60, 12), 60, 12))"
+---
+" Playback │ Recording │ Output Devices │ Input… ▸           "
+" Show: Applications (f)                          3 streams  "
+"▌● Firefox: Playing music – Lo-fi be… → Starship/Matisse HD…"
+"▌ [ ] ━━━━━━━━━━━━━━━━━━━───────┃─────────────  72%         "
+"▌    FL 72%  FR 72%  locked                                 "
+" ● Spotify: Song Title                → Starship/Matisse HD…"
+"  [ ] ━━━━━━━━━━━━━━━━━━━━━━━━━━┃═════──────── 120%         "
+"     FL 120%  FR 120%  locked                               "
+" ○ mpv: video.mkv                     → CA0132 Sound Core3D…"
+"  [M] ━━━━━━━━━━━━━━━───────────┃─────────────  55%         "
+"     FL 55%  FR 55%  locked                                 "
+" ● PipeWire 1.6.9 │ h/l v… out: Starship/Matisse H… │ ? help"

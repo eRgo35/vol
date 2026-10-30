@@ -1,22 +1,38 @@
 //! Playback tab: application streams (02 §3).
 
-use ratatui::{buffer::Buffer, layout::Rect};
+use ratatui::{buffer::Buffer, layout::Rect, widgets::Widget};
 
 use crate::{
     app::App,
     model::view::{StreamFilter, UiPending, playback_rows},
     theme::Theme,
     ui::{SelectedTab, render_body_text},
+    widgets::{
+        row_list::{LOCKED_ROW_HEIGHT, RowList},
+        volume_row::{RowGeometry, render_locked_row},
+    },
 };
 
-/// Renders the Playback tab body into `area`.
+/// Renders the Playback tab body into `area`: one locked row per stream of
+/// the current filter (VOL-PB-001), or the empty state.
 pub fn render(app: &App, area: Rect, buf: &mut Buffer) {
     let rows = playback_rows(&app.store, app.ui.playback_filter, &UiPending);
     if rows.is_empty() {
         render_empty(app, area, buf);
         return;
     }
-    super::render_stub(app, SelectedTab::PlaybackTab, area, buf);
+    let theme = Theme::new(app.options.color);
+    let geometry = RowGeometry::new(area.width);
+    let state = app.ui.list(SelectedTab::PlaybackTab);
+    let heights = vec![LOCKED_ROW_HEIGHT; rows.len()];
+    RowList {
+        state: &state,
+        heights: &heights,
+        draw_row: |index: usize, selected: bool, row_area: Rect, buf: &mut Buffer| {
+            render_locked_row(&rows[index], &geometry, selected, &theme, row_area, buf);
+        },
+    }
+    .render(area, buf);
 }
 
 /// Empty state (VOL-PB-004): `No playback streams`, or, when the filter hides

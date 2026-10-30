@@ -1,0 +1,28 @@
+---
+source: tests/render.rs
+expression: framed(&buf)
+---
+" Playback │ Recording │ Output Devices │ Input Devices │ Configuration          "
+" Show: Applications (f)                                              3 streams  "
+"▌● Firefox: Playing music – Lo-fi beats           → Starship/Matisse HD Audio C…"
+"▌ [ ] ━━━━━━━━━━━━━━━━━━━━━━━━──────────┃────────────────  72%  -8.6 dB         "
+"▌    FL 72%  FR 72%  locked                                                     "
+" ● Spotify: Song Title                            → Starship/Matisse HD Audio C…"
+"  [ ] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┃══════────────── 120%  +4.8 dB         "
+"     FL 120%  FR 120%  locked                                                   "
+" ○ mpv: video.mkv                                 → CA0132 Sound Core3D Analog …"
+"  [M] ━━━━━━━━━━━━━━━━━━━───────────────┃────────────────  55% -15.6 dB         "
+"     FL 55%  FR 55%  locked                                                     "
+"                                                                                "
+"                                                                                "
+"                                                                                "
+"                                                                                "
+"                                                                                "
+"                                                                                "
+"                                                                                "
+"                                                                                "
+"                                                                                "
+"                                                                                "
+"                                                                                "
+"                                                                                "
+" ● PipeWire 1.6.9 │ h/l vol  m mute  c lock  … out: Starship/Matisse H… │ ? help"

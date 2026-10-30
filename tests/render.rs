@@ -283,3 +283,90 @@ fn empty_with_hidden_streams_text() {
     );
     assert!(screen.contains("Press f to change the filter."), "{screen}");
 }
+
+/// The `default_system` fixture (02 §2.3 mockup streams) on a `width`×`height`
+/// terminal, all initial events applied; the first row is selected.
+#[cfg(feature = "mock")]
+fn fixture(width: u16, height: u16) -> App {
+    use vol::{
+        backend::{fixtures::default_system, mock::spawn_mock},
+        event::Event,
+    };
+    let (handle, _control) = spawn_mock(default_system());
+    let options = Options {
+        color: true,
+        mouse: false,
+    };
+    let mut app = App::new(options, handle, Instant::now());
+    app.resize(width, height);
+    while let Ok(event) = app.backend.events.try_recv() {
+        app.on_event(Event::Backend(event));
+    }
+    app
+}
+
+#[cfg(feature = "mock")]
+#[test]
+fn playback_80x24_locked_rows() {
+    let buf = render(&fixture(80, 24), 80, 24);
+    assert_eq!(
+        line(&buf, 3),
+        "▌ [ ] ━━━━━━━━━━━━━━━━━━━━━━━━──────────┃────────────────  72%  -8.6 dB"
+    );
+    insta::assert_snapshot!(framed(&buf));
+}
+
+#[cfg(feature = "mock")]
+#[test]
+fn playback_60x12_mid_tier() {
+    insta::assert_snapshot!(framed(&render(&fixture(60, 12), 60, 12)));
+}
+
+#[cfg(feature = "mock")]
+#[test]
+fn playback_40x16_narrow_tier() {
+    insta::assert_snapshot!(framed(&render(&fixture(40, 16), 40, 16)));
+}
+
+#[cfg(feature = "mock")]
+#[test]
+fn over_100_percent_row_style() {
+    // Spotify, 120 %: line 2 of the second row. G = 51, tick at bar cell 34
+    // (column 40), fill 41 cells: cells 35…40 (columns 41…46) are over 100 %.
+    let buf = render(&fixture(80, 24), 80, 24);
+    assert_eq!(buf[(40, 6)].symbol(), "┃");
+    for x in 41..=46 {
+        assert_eq!(buf[(x, 6)].symbol(), "═", "column {x}");
+        assert_eq!(buf[(x, 6)].fg, Color::Red, "column {x}");
+    }
+    assert_eq!(buf[(47, 6)].symbol(), "─");
+    assert_ne!(
+        buf[(39, 6)].fg,
+        Color::Red,
+        "fill left of the tick is not red"
+    );
+    for x in 58..=61 {
+        assert_eq!(buf[(x, 6)].fg, Color::Red, "percent text, column {x}");
+    }
+}
+
+#[cfg(feature = "mock")]
+#[test]
+fn muted_row_is_dim() {
+    // mpv, muted and idle: the third row (lines 8…10).
+    let buf = render(&fixture(80, 24), 80, 24);
+    assert!(line(&buf, 9).starts_with("  [M] ━━━"));
+    for y in 8..=10 {
+        for x in 0..80 {
+            let cell = &buf[(x, y)];
+            if y == 9 && (2..5).contains(&x) {
+                assert!(!cell.modifier.contains(Modifier::DIM), "[M] at {x}");
+                assert_eq!(cell.fg, Color::Red, "[M] at {x}");
+            } else {
+                assert!(cell.modifier.contains(Modifier::DIM), "({x},{y})");
+            }
+        }
+    }
+    // The row above is not dimmed.
+    assert!(!buf[(10, 6)].modifier.contains(Modifier::DIM));
+}

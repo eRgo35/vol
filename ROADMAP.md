@@ -75,7 +75,7 @@ Size: S ≈ 2–3 working days, M ≈ 4–6, L ≈ 8–12 (one developer, tasks 
 **Exit criteria.**
 
 - Playback tab renders live streams from a running session; adding/removing a stream (e.g. `pw-cat --playback`) updates the list without moving the selection off its `RowKey`.
-- Snapshots at 80×24, 60×10, 40×16 (locked rows) match the 02-playback mockups for the same fixture.
+- Snapshots at 80×24, 60×12, 40×16 (locked rows) match the 02-playback mockups for the same fixture.
 - MA-01, MA-02 (read side) and MA-11 pass.
 - Volume math tests (VOL-VM-005/006) and bar geometry (VOL-TEST-032) pass; Q11 decided.
 
